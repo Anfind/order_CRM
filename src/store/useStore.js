@@ -37,9 +37,26 @@ const useStore = create((set, get) => ({
     set({ tables });
   },
 
+  setGuestCount: (tableId, count) => {
+    const tables = get().tables.map(t =>
+      t.id === tableId ? { ...t, guestCount: Math.max(0, count) } : t
+    );
+    saveState('tables', tables);
+    set({ tables });
+  },
+
   // --- Current Cart (for ordering) ---
   cart: [],
   cartNote: '',
+  selectedStaffId: loadState('selectedStaff', null),
+  orderType: 'dine_in', // dine_in | takeaway | delivery | reservation
+
+  setOrderType: (type) => set({ orderType: type }),
+
+  setSelectedStaff: (staffId) => {
+    saveState('selectedStaff', staffId);
+    set({ selectedStaffId: staffId });
+  },
 
   addToCart: (itemId) => {
     const cart = [...get().cart];
@@ -73,11 +90,89 @@ const useStore = create((set, get) => ({
 
   clearCart: () => set({ cart: [], cartNote: '' }),
 
+  // --- Draft Orders (tạm lưu) ---
+  drafts: loadState('drafts', []),
+
+  saveDraft: () => {
+    const { cart, cartNote, selectedTableId, selectedStaffId, orderType, tables } = get();
+    if (!cart.length || !selectedTableId) return null;
+
+    const table = tables.find(t => t.id === selectedTableId);
+    const draftId = `DRF-${Date.now()}`;
+    const draft = {
+      id: draftId,
+      tableId: selectedTableId,
+      tableName: table.name,
+      items: [...cart],
+      note: cartNote,
+      staffId: selectedStaffId,
+      orderType,
+      total: cart.reduce((sum, c) => sum + c.price * c.quantity, 0),
+      createdAt: new Date().toISOString(),
+    };
+
+    const drafts = [...get().drafts, draft];
+    saveState('drafts', drafts);
+
+    // Update table to ordering status
+    const newTables = tables.map(t =>
+      t.id === selectedTableId ? { ...t, status: 'ordering' } : t
+    );
+    saveState('tables', newTables);
+
+    set({
+      drafts,
+      tables: newTables,
+      cart: [],
+      cartNote: '',
+      selectedTableId: null,
+    });
+
+    return draftId;
+  },
+
+  loadDraft: (draftId) => {
+    const draft = get().drafts.find(d => d.id === draftId);
+    if (!draft) return;
+    set({
+      cart: [...draft.items],
+      cartNote: draft.note || '',
+      selectedTableId: draft.tableId,
+      selectedStaffId: draft.staffId,
+      orderType: draft.orderType || 'dine_in',
+    });
+    // Remove draft
+    const drafts = get().drafts.filter(d => d.id !== draftId);
+    saveState('drafts', drafts);
+    set({ drafts });
+  },
+
+  deleteDraft: (draftId) => {
+    const draft = get().drafts.find(d => d.id === draftId);
+    const drafts = get().drafts.filter(d => d.id !== draftId);
+    saveState('drafts', drafts);
+
+    // Reset table if this was the only draft
+    if (draft) {
+      const hasOtherDrafts = drafts.some(d => d.tableId === draft.tableId);
+      const hasOrders = get().orders.some(o => o.tableId === draft.tableId && o.status !== 'paid');
+      if (!hasOtherDrafts && !hasOrders) {
+        const tables = get().tables.map(t =>
+          t.id === draft.tableId ? { ...t, status: 'empty', orderId: null, guestCount: 0 } : t
+        );
+        saveState('tables', tables);
+        set({ drafts, tables });
+        return;
+      }
+    }
+    set({ drafts });
+  },
+
   // --- Orders (sent to kitchen) ---
   orders: loadState('orders', []),
 
   sendOrderToKitchen: () => {
-    const { cart, cartNote, selectedTableId, tables } = get();
+    const { cart, cartNote, selectedTableId, selectedStaffId, orderType, tables } = get();
     if (!cart.length || !selectedTableId) return null;
 
     const table = tables.find(t => t.id === selectedTableId);
@@ -88,6 +183,10 @@ const useStore = create((set, get) => ({
       tableName: table.name,
       items: [...cart],
       note: cartNote,
+      staffId: selectedStaffId,
+      staffName: null, // will be resolved in component
+      orderType,
+      guestCount: table.guestCount || 0,
       status: 'pending', // pending | cooking | done | paid
       total: cart.reduce((sum, c) => sum + c.price * c.quantity, 0),
       createdAt: new Date().toISOString(),
@@ -115,6 +214,32 @@ const useStore = create((set, get) => ({
     });
 
     return orderId;
+  },
+
+  // Add more items to an existing order (gọi thêm món)
+  addItemsToOrder: (orderId) => {
+    const { cart, cartNote } = get();
+    if (!cart.length) return false;
+
+    const orders = get().orders.map(o => {
+      if (o.id !== orderId) return o;
+      const mergedItems = [...o.items];
+      cart.forEach(cartItem => {
+        const existing = mergedItems.find(mi => mi.itemId === cartItem.itemId);
+        if (existing) {
+          existing.quantity += cartItem.quantity;
+        } else {
+          mergedItems.push({ ...cartItem });
+        }
+      });
+      const newTotal = mergedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      const newNote = [o.note, cartNote].filter(Boolean).join(' | ');
+      return { ...o, items: mergedItems, total: newTotal, note: newNote, status: 'pending' };
+    });
+
+    saveState('orders', orders);
+    set({ orders, cart: [], cartNote: '' });
+    return true;
   },
 
   // Kitchen actions
@@ -155,7 +280,7 @@ const useStore = create((set, get) => ({
     const order = orders.find(o => o.id === orderId);
     if (order) {
       const tables = get().tables.map(t =>
-        t.id === order.tableId ? { ...t, status: 'empty', orderId: null } : t
+        t.id === order.tableId ? { ...t, status: 'empty', orderId: null, guestCount: 0 } : t
       );
       saveState('tables', tables);
       set({ orders, tables, selectedTableId: null });
@@ -181,6 +306,7 @@ const useStore = create((set, get) => ({
     const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total, 0);
     const totalOrders = orders.length;
     const completedOrders = orders.filter(o => o.status === 'done' || o.status === 'paid').length;
+    const totalGuests = paidOrders.reduce((sum, o) => sum + (o.guestCount || 0), 0);
 
     // Top items
     const itemCounts = {};
@@ -204,14 +330,22 @@ const useStore = create((set, get) => ({
       revenueByHour[h] = (revenueByHour[h] || 0) + o.total;
     });
 
-    return { totalRevenue, totalOrders, completedOrders, paidOrders: paidOrders.length, topItems, revenueByHour };
+    // By order type
+    const ordersByType = {};
+    orders.forEach(o => {
+      const t = o.orderType || 'dine_in';
+      ordersByType[t] = (ordersByType[t] || 0) + 1;
+    });
+
+    return { totalRevenue, totalOrders, completedOrders, paidOrders: paidOrders.length, topItems, revenueByHour, totalGuests, ordersByType };
   },
 
   // Reset all data
   resetAll: () => {
     localStorage.removeItem('orderflow_tables');
     localStorage.removeItem('orderflow_orders');
-    set({ tables: INITIAL_TABLES, orders: [], cart: [], cartNote: '', selectedTableId: null });
+    localStorage.removeItem('orderflow_drafts');
+    set({ tables: INITIAL_TABLES, orders: [], drafts: [], cart: [], cartNote: '', selectedTableId: null });
   },
 }));
 

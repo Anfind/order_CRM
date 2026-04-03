@@ -1,6 +1,7 @@
 // Mock data for OrderFlow restaurant system
 
 export const MENU_CATEGORIES = [
+  { id: 'popular', name: 'Hay Dùng', icon: '❤️' },
   { id: 'appetizer', name: 'Khai Vị', icon: '🥗' },
   { id: 'main', name: 'Món Chính', icon: '🍖' },
   { id: 'noodle', name: 'Mì & Phở', icon: '🍜' },
@@ -50,12 +51,38 @@ export const MENU_ITEMS = [
   { id: 27, name: 'Trái cây dĩa',            price: 45000,  category: 'dessert', image: '🍉' },
 ];
 
+// Staff / NV Phục vụ
+export const STAFF_LIST = [
+  { id: 1, name: 'Minh', role: 'Phục vụ' },
+  { id: 2, name: 'Hương', role: 'Phục vụ' },
+  { id: 3, name: 'Tuấn', role: 'Phục vụ' },
+  { id: 4, name: 'Linh', role: 'Phục vụ' },
+  { id: 5, name: 'Đức', role: 'Thu ngân' },
+];
+
+// Order type tabs
+export const ORDER_TYPES = [
+  { id: 'dine_in',     label: 'Tại bàn',      icon: '🪑' },
+  { id: 'takeaway',    label: 'Mang về',       icon: '🥡' },
+  { id: 'delivery',    label: 'Giao hàng',     icon: '🛵' },
+  { id: 'reservation', label: 'Đặt trước',     icon: '📅' },
+];
+
+// Table areas
+export const TABLE_AREAS = [
+  { id: 'A', name: 'Tầng 1' },
+  { id: 'B', name: 'Tầng 2' },
+  { id: 'C', name: 'Sân vườn' },
+];
+
 export const INITIAL_TABLES = Array.from({ length: 12 }, (_, i) => ({
   id: i + 1,
   name: `Bàn ${i + 1}`,
   seats: i < 4 ? 2 : i < 8 ? 4 : 6,
+  area: i < 4 ? 'A' : i < 8 ? 'B' : 'C',
   status: 'empty', // empty | ordering | waiting | served
   orderId: null,
+  guestCount: 0,
 }));
 
 export const TABLE_STATUS_CONFIG = {
