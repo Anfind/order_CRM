@@ -15,11 +15,10 @@ export default function OrderView() {
   const selectedTableId = useStore(s => s.selectedTableId);
   const selectTable = useStore(s => s.selectTable);
   const cart = useStore(s => s.cart);
-  const cartNote = useStore(s => s.cartNote);
   const addToCart = useStore(s => s.addToCart);
   const updateCartQty = useStore(s => s.updateCartQty);
+  const updateCartItemNote = useStore(s => s.updateCartItemNote);
   const removeFromCart = useStore(s => s.removeFromCart);
-  const setCartNote = useStore(s => s.setCartNote);
   const clearCart = useStore(s => s.clearCart);
   const sendOrderToKitchen = useStore(s => s.sendOrderToKitchen);
   const orders = useStore(s => s.orders);
@@ -96,19 +95,17 @@ export default function OrderView() {
       if (ok) {
         addToast(`Đã thêm món vào đơn ${tableOrder.id}!`, 'success');
         setShowCart(false);
-        // In phiếu bếp cho món mới thêm
         printKitchenTicket({
           orderId: tableOrder.id + ' (THÊM)',
           tableName: selectedTable.name,
           items: cart,
-          note: cartNote,
+          note: '',
           staffName: staffName(selectedStaffId),
         });
       }
       return;
     }
     const currentCart = [...cart];
-    const currentNote = cartNote;
     const currentTableName = selectedTable.name;
     const currentStaffName = staffName(selectedStaffId);
     const orderId = sendOrderToKitchen();
@@ -120,7 +117,7 @@ export default function OrderView() {
         orderId,
         tableName: currentTableName,
         items: currentCart,
-        note: currentNote,
+        note: '',
         staffName: currentStaffName,
       });
     }
@@ -740,6 +737,13 @@ export default function OrderView() {
                       <img className="cart-item__image" src={c.image} alt={c.name} />
                       <div>
                         <span className="cart-item__name">{c.name}</span>
+                        <input 
+                          type="text" 
+                          className="cart-item__note-input"
+                          placeholder="Ghi chú món (ít bún...)"
+                          value={c.note || ''}
+                          onChange={(e) => updateCartItemNote(c.itemId, e.target.value)}
+                        />
                         <span className="cart-item__unit-price">{formatCurrency(c.price)}</span>
                       </div>
                     </div>
@@ -756,16 +760,6 @@ export default function OrderView() {
                 ))}
               </div>
 
-              <div className="cart-note">
-                <textarea
-                  id="cart-note-input"
-                  className="cart-note__input"
-                  placeholder="Ghi chú cho bếp (ít cay, bỏ hành...)"
-                  value={cartNote}
-                  onChange={e => setCartNote(e.target.value)}
-                  rows={2}
-                />
-              </div>
 
               <div className="cart-footer">
                 <div className="cart-total">

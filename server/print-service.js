@@ -271,31 +271,31 @@ export async function printKitchenTicket({ orderId, tableName, items, note, time
     .newLine()
 
     // Bordered Table Header
-    .bold(true).size(0, 0) // Normal size, 48 columns mode
-    .gridTop([4, 39])
-    .gridRow([4, 39], ['SL', 'Ten mon'], ['center', 'left'])
-    .gridMid([4, 39])
+    .raw(0x1B, 0x4D, 1) // Switch to Font B (64 columns)
+    .bold(true).size(0, 0) 
+    .gridTop([4, 55])
+    .gridRow([4, 55], ['SL', 'Ten mon'], ['center', 'left'])
+    .gridMid([4, 55])
     .bold(false);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const sl = String(item.quantity || 1);
-    const name = d(item.name).slice(0, 39 - 1);
-    esc.gridRow([4, 39], [sl, name], ['center', 'left']);
+    const name = d(item.name).slice(0, 55 - 1);
+    esc.gridRow([4, 55], [sl, name], ['center', 'left']);
+    if (item.note) {
+      esc.bold(true).size(0, 1); // Normal width, DOUBLE height!
+      const noteStr = d(item.note).slice(0, 55 - 4);
+      esc.gridRow([4, 55], [' ', '>> ' + noteStr], ['center', 'left']);
+      esc.size(0, 0).bold(false);
+    }
     if (i < items.length - 1) {
-       esc.gridMid([4, 39]); // Horizontal line between items
+       esc.gridMid([4, 55]); // Horizontal line between items
     }
   }
   
-  esc.gridBot([4, 39]).size(0, 0);
-
-  if (note && note.trim()) {
-    esc.bold(true).size(1, 0)
-      .println('Ghi chu:')
-      .bold(false)
-      .println(d(note))
-      .size(0, 0);
-  }
+  esc.gridBot([4, 55])
+  esc.raw(0x1B, 0x4D, 0); // Restore to Font A
 
   esc.newLine(3).cut();
 

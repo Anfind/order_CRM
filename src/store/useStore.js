@@ -154,6 +154,16 @@ const useStore = create((set, get) => ({
     set({ cart });
   },
 
+  updateCartItemNote: (itemId, note) => {
+    const cart = get().cart.map(c => {
+      if (c.itemId === itemId) {
+        return { ...c, note };
+      }
+      return c;
+    });
+    set({ cart });
+  },
+
   setCartNote: (note) => set({ cartNote: note }),
   clearCart: () => set({ cart: [], cartNote: '' }),
 
