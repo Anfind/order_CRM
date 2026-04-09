@@ -786,22 +786,7 @@ export default function OrderView() {
         </aside>
       )}
 
-      {/* Served Orders Notification Bar */}
-      {servedOrders.length > 0 && !showOrderList && (
-        <div className="served-bar" id="served-bar">
-          {servedOrders.map(o => (
-            <div key={o.id} className="served-bar__item">
-              <span><CircleCheck size={14} /> {o.tableName} đã ra món!</span>
-              <button className="btn btn--accent btn--sm" onClick={() => {
-                selectTable(o.tableId);
-                setShowPayment(true);
-              }}>
-                Thanh toán
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Served Orders Notification Bar Removed */}
     </div>
   );
 }

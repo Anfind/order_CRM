@@ -126,7 +126,7 @@ router.post('/orders/:id/items', (req, res) => {
     items: mergedItems,
     total: newTotal,
     note: newNote,
-    status: 'pending',
+    status: 'done', // Auto-complete
   });
   res.json(updated);
 });
