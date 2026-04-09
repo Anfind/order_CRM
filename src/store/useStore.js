@@ -258,7 +258,7 @@ const useStore = create((set, get) => ({
       staffName: null,
       orderType,
       guestCount: table.guestCount || table.guest_count || 0,
-      status: 'pending',
+      status: 'cooking',
       total: cart.reduce((sum, c) => sum + c.price * c.quantity, 0),
       createdAt: new Date().toISOString(),
       completedAt: null,
@@ -301,7 +301,7 @@ const useStore = create((set, get) => ({
       });
       const newTotal = mergedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
       const newNote = [o.note, cartNote].filter(Boolean).join(' | ');
-      return { ...o, items: mergedItems, total: newTotal, note: newNote, status: 'pending' };
+      return { ...o, items: mergedItems, total: newTotal, note: newNote, status: 'cooking' };
     });
 
     set({ orders, cart: [], cartNote: '' });

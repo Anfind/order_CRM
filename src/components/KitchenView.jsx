@@ -1,26 +1,19 @@
 import useStore from '../store/useStore';
 import { formatCurrency, STAFF_LIST, ORDER_TYPES } from '../data/mockData';
 import {
-  ChefHat, ClipboardList, Flame, Timer, CircleCheck, Users,
+  ChefHat, Flame, Timer, CircleCheck, Users,
   UserRound, PencilLine, Banknote
 } from 'lucide-react';
 import './KitchenView.css';
 
 export default function KitchenView() {
   const orders = useStore(s => s.orders);
-  const startCooking = useStore(s => s.startCooking);
   const completeOrder = useStore(s => s.completeOrder);
   const addToast = useStore(s => s.addToast);
 
-  const pending = orders.filter(o => o.status === 'pending');
-  const cooking = orders.filter(o => o.status === 'cooking');
+  const cooking = orders.filter(o => o.status === 'cooking' || o.status === 'pending');
   const done = orders.filter(o => o.status === 'done' || o.status === 'paid');
-  const recentDone = done.slice(-6).reverse();
-
-  const handleStart = (orderId) => {
-    startCooking(orderId);
-    addToast('Đang bắt đầu làm bếp!', 'info');
-  };
+  const recentDone = done.slice(-8).reverse();
 
   const handleComplete = (orderId, tableName) => {
     completeOrder(orderId);
@@ -40,71 +33,18 @@ export default function KitchenView() {
       <div className="kitchen-view__header">
         <h2 className="section-title"><ChefHat size={20} /> Bếp</h2>
         <div className="kitchen-stats">
-          <span className="kitchen-stat kitchen-stat--pending">
-            <span className="kitchen-stat__dot" />
-            {pending.length} mới
-          </span>
           <span className="kitchen-stat kitchen-stat--cooking">
             <span className="kitchen-stat__dot" />
             {cooking.length} đang làm
+          </span>
+          <span className="kitchen-stat kitchen-stat--done">
+            <span className="kitchen-stat__dot" />
+            {done.length} hoàn thành
           </span>
         </div>
       </div>
 
       <div className="kitchen-board" id="kitchen-board">
-        {/* Pending Column */}
-        <div className="kitchen-col">
-          <div className="kitchen-col__header kitchen-col__header--pending">
-            <ClipboardList size={16} className="kitchen-col__icon" />
-            <span className="kitchen-col__title">Mới nhận</span>
-            <span className="kitchen-col__count">{pending.length}</span>
-          </div>
-          <div className="kitchen-col__body">
-            {pending.length === 0 && (
-              <div className="kitchen-empty">
-                <Timer size={28} strokeWidth={1.5} />
-                <p>Chưa có đơn mới</p>
-              </div>
-            )}
-            {pending.map(order => (
-              <div key={order.id} className="kitchen-card kitchen-card--pending" id={`kitchen-${order.id}`}>
-                <div className="kitchen-card__head">
-                  <span className="kitchen-card__table">{order.tableName}</span>
-                  <span className="kitchen-card__time">{getTimeSince(order.createdAt)}</span>
-                </div>
-                <div className="kitchen-card__meta">
-                  {order.guestCount > 0 && <span><Users size={11} /> {order.guestCount}</span>}
-                  {order.staffId && <span><UserRound size={11} /> {STAFF_LIST.find(s => s.id === order.staffId)?.name}</span>}
-                  {order.orderType && order.orderType !== 'dine_in' && (
-                    <span className="kitchen-card__type">{ORDER_TYPES.find(t => t.id === order.orderType)?.label}</span>
-                  )}
-                </div>
-                <div className="kitchen-card__items">
-                  {order.items.map((item, i) => (
-                    <div key={i} className="kitchen-card__item">
-                      <img className="kitchen-card__item-img" src={item.image} alt={item.name} />
-                      <span className="kitchen-card__item-name">{item.name}</span>
-                      <span className="kitchen-card__item-qty">×{item.quantity}</span>
-                    </div>
-                  ))}
-                </div>
-                {order.note && (
-                  <div className="kitchen-card__note">
-                    <PencilLine size={13} className="kitchen-card__note-icon" />
-                    <span>{order.note}</span>
-                  </div>
-                )}
-                <button
-                  className="btn btn--primary btn--full"
-                  onClick={() => handleStart(order.id)}
-                >
-                  <Flame size={15} /> Bắt đầu làm
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Cooking Column */}
         <div className="kitchen-col">
           <div className="kitchen-col__header kitchen-col__header--cooking">
@@ -130,6 +70,9 @@ export default function KitchenView() {
                 <div className="kitchen-card__meta">
                   {order.guestCount > 0 && <span><Users size={11} /> {order.guestCount}</span>}
                   {order.staffId && <span><UserRound size={11} /> {STAFF_LIST.find(s => s.id === order.staffId)?.name}</span>}
+                  {order.orderType && order.orderType !== 'dine_in' && (
+                    <span className="kitchen-card__type">{ORDER_TYPES.find(t => t.id === order.orderType)?.label}</span>
+                  )}
                 </div>
                 <div className="kitchen-card__items">
                   {order.items.map((item, i) => (
@@ -150,7 +93,7 @@ export default function KitchenView() {
                   className="btn btn--accent btn--full"
                   onClick={() => handleComplete(order.id, order.tableName)}
                 >
-                  <CircleCheck size={15} /> Hoàn thành - Phục vụ
+                  <CircleCheck size={15} /> Hoàn thành - Ra món
                 </button>
               </div>
             ))}
