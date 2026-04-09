@@ -186,47 +186,59 @@ export async function printKitchenTicket({ orderId, tableName, items, note, time
   esc.init()
     // Beep 3 lần để bếp chú ý
     .beep(3, 3)
-    // Header
+
+    // Header — size 2x2 (rất to)
     .alignCenter()
-    .bold(true).size(1, 1)
+    .bold(true).size(2, 2)
     .println(removeDiacritics('CHE BIEN'))
     .size(0, 0).bold(false)
     .newLine()
-    // Order info
+
+    // Order info — size 1x0 (rộng gấp đôi)
     .alignLeft()
-    .println(`Order: ${orderId}  Ngay: ${dateStr} (${timeStr})`)
+    .size(1, 0)
+    .println(`Order: ${orderId}`)
+    .println(`Ngay: ${dateStr} (${timeStr})`)
+    .size(0, 0)
     .newLine()
-    .bold(true).size(1, 0)
+
+    // Tên bàn — size 1x1 (to, dễ thấy)
+    .bold(true).size(1, 1)
     .println(`Ban: ${removeDiacritics(tableName || 'N/A')}`)
     .size(0, 0).bold(false)
+    .size(1, 0)
     .println(`Nguoi gui: ${removeDiacritics(staffName || 'Quay Thu Ngan')}`)
-    .line()
-    // Table header
-    .bold(true)
-    .tableRow([
-      { text: 'Mon', width: 0.55, align: 'left' },
-      { text: 'DVT', width: 0.2, align: 'center' },
-      { text: 'SL', width: 0.25, align: 'right' },
-    ])
-    .bold(false)
-    .line();
+    .size(0, 0)
+    .newLine()
+    .line('=')
 
-  // Items
+    // Table header — size 1x0
+    .bold(true).size(1, 0)
+    .println('Mon             SL')
+    .size(0, 0).bold(false)
+    .line('=');
+
+  // Items — size 1x1 (to, bếp dễ đọc)
   for (const item of items) {
-    esc.tableRow([
-      { text: removeDiacritics(item.name), width: 0.55, align: 'left' },
-      { text: 'Phan', width: 0.2, align: 'center' },
-      { text: String(item.quantity || 1), width: 0.25, align: 'right' },
-    ]);
+    const name = removeDiacritics(item.name);
+    const qty = String(item.quantity || 1);
+    // Dùng size 1x1 → mỗi ký tự chiếm 2 cột → max ~16 chars trên dòng 32-col
+    esc.bold(true).size(1, 1);
+    // Pad name to 13 chars, qty right-aligned 3 chars
+    const line = name.padEnd(13).slice(0, 13) + qty.padStart(3);
+    esc.println(line);
+    esc.size(0, 0).bold(false);
   }
 
-  esc.line();
+  esc.line('=');
 
-  // Note
+  // Note — size 1x0
   if (note && note.trim()) {
-    esc.bold(true)
-      .println(`Ghi chu: ${removeDiacritics(note)}`)
-      .bold(false);
+    esc.bold(true).size(1, 0)
+      .println(`Ghi chu:`)
+      .bold(false)
+      .println(removeDiacritics(note))
+      .size(0, 0);
   }
 
   esc.newLine(3).cut();
