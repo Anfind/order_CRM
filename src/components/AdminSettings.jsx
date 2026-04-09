@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import useStore from '../store/useStore';
 import { Trash2, Plus, Save, X, Edit, LayoutGrid, Layers, Armchair } from 'lucide-react';
-import { API } from '../store/useStore';
 
 export default function AdminSettings() {
   const tableAreas = useStore(s => s.tableAreas);
