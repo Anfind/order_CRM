@@ -434,6 +434,47 @@ export default function OrderView() {
             )}
           </section>
 
+          {/* ========== CURRENT ORDER ITEMS (for waiting tables) ========== */}
+          {canAddMore && tableOrder && (
+            <section className="current-order-section">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <ClipboardList size={18} /> Đơn đang chờ — {selectedTable.name}
+                </h2>
+                <span className="current-order-total">
+                  {formatCurrency(tableOrder.total)}
+                </span>
+              </div>
+              <div className="current-order-items">
+                <div className="current-order-items__header">
+                  <span className="col-name">Tên món</span>
+                  <span className="col-qty">SL</span>
+                  <span className="col-price">Thành tiền</span>
+                  <span className="col-del"></span>
+                </div>
+                {tableOrder.items.map((item, i) => (
+                  <div key={i} className="current-order-item">
+                    <span className="col-name">{item.name}</span>
+                    <span className="col-qty">{item.quantity}</span>
+                    <span className="col-price">{formatCurrency(item.price * item.quantity)}</span>
+                    <button
+                      className="current-order-item__delete"
+                      title="Xoá món (cần mật khẩu admin)"
+                      onClick={() => setPendingDeleteItem({ orderId: tableOrder.id, itemIndex: i, itemName: item.name })}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {tableOrder.note && (
+                <div className="current-order-note">
+                  <PencilLine size={13} /> {tableOrder.note}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Payment Modal */}
           {showPayment && selectedTable && selectedTable.status === 'served' && tableOrder && (
             <div className="modal-overlay" onClick={() => setShowPayment(false)}>
