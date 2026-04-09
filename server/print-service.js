@@ -366,12 +366,29 @@ export async function testPrinter() {
   const esc = new EscPos();
   esc.init()
     .alignCenter().bold(true).size(1, 1)
-    .println('=== KIỂM TRA ===')
+    .println('=== TÌM MÃ TIẾNG VIỆT ===')
     .size(0, 0).bold(false)
     .println('Thời gian: ' + new Date().toLocaleString('vi-VN'))
-    .println('Máy in OK!')
-    .newLine(3).cut();
+    .line()
+    .alignLeft();
 
+  // Test various code pages that might contain Vietnamese
+  const testPages = [16, 27, 30, 31, 40, 42, 48, 49, 77];
+  
+  for (const cp of testPages) {
+    esc.raw(0x1B, 0x74, cp); // ESC t <cp>
+    // In chữ "Bún riêu - Bún đậu" được encode qua win1258 
+    const buf = iconv.encode(`[Mã ${cp}] Bún riêu - đậu\n`, 'win1258');
+    for (const b of buf) esc.data.push(b);
+  }
+
+  esc.newLine(2)
+     .raw(0x1B, 0x74, 27) // Reset
+     .println('May in OK!')
+     .newLine(3).cut();
+
+  // Print to both to test
+  printRaw(RECEIPT_PRINTER, esc.build());
   const kitchen = printRaw(KITCHEN_PRINTER, esc.build());
   return { kitchen, kitchenPrinter: KITCHEN_PRINTER, receiptPrinter: RECEIPT_PRINTER };
 }
