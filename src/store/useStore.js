@@ -96,7 +96,7 @@ const useStore = create((set, get) => ({
   },
 
   // --- Tables ---
-  tables: INITIAL_TABLES,
+  tables: [],
   selectedTableId: null,
 
   selectTable: (tableId) => set({ selectedTableId: tableId }),
