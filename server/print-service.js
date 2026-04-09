@@ -255,11 +255,8 @@ export async function printKitchenTicket({ orderId, tableName, items, note, time
 
     // Order info
     .alignLeft()
-    .size(0, 1) // Double height for readable info
-    .println('Order: ' + orderId)
-    .println('Ngay: ' + dateStr + ' (' + timeStr + ')')
-    .println('Thu ngan: ' + d(staffName || 'Thu Ngan'))
-    .size(0, 0)
+    .size(0, 0) // Normal size
+    .println(`Ngay: ${dateStr.slice(0,5)} ${timeStr} - TN: ${d(staffName || 'Thu Ngan')}`)
     .newLine()
 
     // Table name
