@@ -248,54 +248,60 @@ export async function printKitchenTicket({ orderId, tableName, items, note, time
 
     // Header
     .alignCenter()
-    .bold(true).size(1, 1) // Double size instead of quad
+    .bold(true).size(1, 1)
     .println('CHE BIEN')
     .size(0, 0).bold(false)
     .newLine()
 
     // Order info
     .alignLeft()
-    .size(1, 0) // Double width
+    .size(0, 1) // Double height for readable info
     .println('Order: ' + orderId)
     .println('Ngay: ' + dateStr + ' (' + timeStr + ')')
+    .println('Thu ngan: ' + d(staffName || 'Thu Ngan'))
     .size(0, 0)
     .newLine()
 
     // Table name
-    .bold(true).size(1, 1) // Double size
-    .println('Ban: ' + d(tableName || 'N/A'))
+    .alignCenter()
+    .line('=')
+    .bold(true).size(1, 1) // Huge table name
+    .println('BAN: ' + d(tableName || 'MV'))
     .size(0, 0).bold(false)
-    .size(1, 0)
-    .println('Nguoi gui: ' + d(staffName || 'Quay Thu Ngan'))
-    .size(0, 0)
+    .line('=')
+    .alignLeft()
     .newLine()
 
-    // Bordered Table Header
-    .raw(0x1B, 0x4D, 1) // Switch to Font B (64 columns)
+    // Bordered Table Header (Font A = 48 chars)
     .bold(true).size(0, 0) 
-    .gridTop([4, 55])
-    .gridRow([4, 55], ['SL', 'Ten mon'], ['center', 'left'])
-    .gridMid([4, 55])
+    .gridTop([4, 39])
+    .gridRow([4, 39], ['SL', 'Ten mon'], ['center', 'left'])
+    .gridMid([4, 39])
     .bold(false);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const sl = String(item.quantity || 1);
-    const name = d(item.name).slice(0, 55 - 1);
-    esc.gridRow([4, 55], [sl, name], ['center', 'left']);
+    const name = d(item.name).slice(0, 39 - 1);
+    
+    // Print item with double-height font to make it larger and easier to read
+    esc.size(0, 1).bold(true);
+    esc.gridRow([4, 39], [sl, name], ['center', 'left']);
+    esc.size(0, 0).bold(false);
+
     if (item.note) {
-      esc.bold(true).size(0, 1); // Normal width, DOUBLE height!
-      const noteStr = d(item.note).slice(0, 55 - 4);
-      esc.gridRow([4, 55], [' ', '>> ' + noteStr], ['center', 'left']);
+      esc.bold(true).size(0, 1); // Note is also double height!
+      const noteStr = d(item.note).slice(0, 39 - 4);
+      esc.gridRow([4, 39], [' ', '>> ' + noteStr], ['center', 'left']);
       esc.size(0, 0).bold(false);
     }
+    
     if (i < items.length - 1) {
-       esc.gridMid([4, 55]); // Horizontal line between items
+       esc.gridMid([4, 39]); // Horizontal line between items
     }
   }
   
-  esc.gridBot([4, 55])
-  esc.raw(0x1B, 0x4D, 0); // Restore to Font A
+  esc.gridBot([4, 39]);
 
   esc.newLine(3).cut();
 
