@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
 import useStore from '../store/useStore';
 import { formatCurrency, STAFF_LIST, ORDER_TYPES, RESTAURANT_INFO } from '../data/mockData';
 import {
@@ -39,34 +40,42 @@ export default function AdminView() {
   const stats = useMemo(() => getStats(filteredOrders), [filteredOrders, getStats]);
 
   const exportExcel = () => {
-    let csv = '\uFEFF'; 
-    csv += 'ID,Ban,Thu Ngan,Gio Tao,Gio Thanh Toan,Trang Thai,Khach,Tong Tien,HT Thanh Toan,Mon\n';
-    
-    filteredOrders.forEach(o => {
-      const itemsStr = o.items.map(i => `${i.quantity}x ${i.name}`).join(' | ');
-      const row = [
-        o.id,
-        o.tableName,
-        o.staffName,
-        new Date(o.createdAt || o.created_at).toLocaleString('vi-VN'),
-        o.paidAt || o.paid_at ? new Date(o.paidAt || o.paid_at).toLocaleString('vi-VN') : '',
-        o.status,
-        o.guestCount || 0,
-        o.total,
-        o.paymentMethod || o.payment_method || '',
-        `"${itemsStr}"`
-      ];
-      csv += row.join(',') + '\n';
-    });
+    const exportData = filteredOrders.map(o => ({
+      'Mã Đơn': o.id,
+      'Khu/Bàn': o.tableName,
+      'Thu Ngân': o.staffName,
+      'Khách': o.guestCount || 0,
+      'Tổng Tiền': o.total,
+      'Thanh Toán': o.paymentMethod === 'cash' ? 'Tiền Mặt' : o.paymentMethod === 'transfer' ? 'Chuyển Khoản' : o.paymentMethod || '',
+      'Món Đã Gọi': o.items.map(i => `${i.quantity}x ${i.name}`).join(' | '),
+      'Giờ Tạo': new Date(o.createdAt || o.created_at).toLocaleString('vi-VN'),
+      'Giờ Hoàn Thành': o.paidAt || o.paid_at ? new Date(o.paidAt || o.paid_at).toLocaleString('vi-VN') : '',
+      'Trạng Thái': o.status === 'paid' ? 'Đã thu tiền' : o.status === 'done' ? 'Đã ra món' : o.status
+    }));
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    let fName = 'BaoCao_ToanBo.csv';
-    if (filterType === 'day') fName = `BaoCao_Ngay_${filterDate}.csv`;
-    if (filterType === 'month') fName = `BaoCao_Thang_${filterMonth}.csv`;
-    link.download = fName;
-    link.click();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    ws['!cols'] = [
+      { wch: 15 }, // Mã Đơn
+      { wch: 15 }, // Khu/Bàn
+      { wch: 15 }, // Thu Ngân
+      { wch: 8 },  // Khách
+      { wch: 15 }, // Tổng Tiền
+      { wch: 15 }, // Thanh Toán
+      { wch: 60 }, // Món Đã Gọi
+      { wch: 22 }, // Giờ Tạo
+      { wch: 22 }, // Giờ HT
+      { wch: 15 }, // Trạng Thái
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Doanh Thu");
+
+    let fName = 'BaoCao_ToanBo.xlsx';
+    if (filterType === 'day') fName = `BaoCao_Ngay_${filterDate}.xlsx`;
+    if (filterType === 'month') fName = `BaoCao_Thang_${filterMonth}.xlsx`;
+
+    XLSX.writeFile(wb, fName);
   };
 
   const activeTables = tables.filter(t => t.status !== 'empty').length;
