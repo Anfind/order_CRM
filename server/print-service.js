@@ -1,6 +1,6 @@
 /**
  * Print Service — ESC/POS via PowerShell (USB)
- * Sử dụng printer-core logic inline, gửi raw bytes qua winspool.drv
+ * Su dung printer-core logic inline, gui raw bytes qua winspool.drv
  */
 import { spawnSync } from 'child_process';
 import { writeFileSync, unlinkSync, existsSync } from 'fs';
@@ -15,16 +15,10 @@ class EscPos {
   constructor() { this.data = []; }
 
   raw(...bytes) { this.data.push(...bytes); return this; }
-  init() {
-    return this.raw(0x1B, 0x40)  // ESC @ — Initialize
-      .raw(0x1C, 0x43, 0xFF)     // FS C 255 — Select UTF-8
-      .raw(0x1C, 0x2E);           // FS . — Enable UTF-8 mode
-  }
+  init() { return this.raw(0x1B, 0x40); }
 
   text(str) {
-    // Send as UTF-8 bytes for Vietnamese diacritics support
-    const buf = Buffer.from(str, 'utf8');
-    for (const b of buf) this.data.push(b);
+    for (const ch of str) this.data.push(ch.charCodeAt(0) & 0xFF);
     return this;
   }
   println(str = '') { return this.text(str).raw(0x0A); }
@@ -41,7 +35,7 @@ class EscPos {
   // 80mm printer = 48 columns normal mode
   line(char = '-', len = 48) { return this.println(char.repeat(len)); }
 
-  // cols param: total overridable for size modes (size 1x = 24 cols)
+  // Plain table row (no borders)
   tableRow(cols, total = 48) {
     let row = '';
     for (const col of cols) {
@@ -59,8 +53,6 @@ class EscPos {
 
   cut() { return this.raw(0x1D, 0x56, 0x41, 0x00); }
 
-  // Buzzer: beep n times, each t×100ms
-  // ESC B n t — n=1~9, t=1~9
   beep(times = 3, duration = 3) {
     return this.raw(0x1B, 0x42, Math.min(9, Math.max(1, times)), Math.min(9, Math.max(1, duration)));
   }
@@ -72,8 +64,7 @@ class EscPos {
 // PowerShell raw print
 // ──────────────────────────────────────
 
-// Kitchen printer name — configurable
-const KITCHEN_PRINTER = process.env.KITCHEN_PRINTER || 'Bếp';
+const KITCHEN_PRINTER = process.env.KITCHEN_PRINTER || 'XP-80C';
 const RECEIPT_PRINTER = process.env.RECEIPT_PRINTER || 'XP-80C';
 
 function printRaw(printerName, buffer) {
@@ -147,7 +138,7 @@ Write-Output $result
 
     if (result.error) throw new Error('PowerShell error: ' + result.error.message);
     const out = (result.stdout || '').trim();
-    console.log('[printRaw]', printerName, '→', out);
+    console.log('[printRaw]', printerName, '->', out);
 
     if (out.startsWith('OK:')) return { success: true };
     return { success: false, error: out };
@@ -160,163 +151,162 @@ Write-Output $result
 }
 
 // ──────────────────────────────────────
-// Bỏ dấu tiếng Việt (ESC/POS chỉ hỗ trợ ASCII)
+// Bo dau tieng Viet (ESC/POS chi ho tro ASCII)
 // ──────────────────────────────────────
 
 function removeDiacritics(str) {
   return str
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D');
 }
 
 // ──────────────────────────────────────
-// In phiếu bếp — format đúng mẫu CukCuk
+// In phieu bep — chu to, bep de doc
 // ──────────────────────────────────────
-//           CHẾ BIẾN
-// Order: {id}  Ngày: DD/MM/YYYY (HH:MM)
-// Bàn: {tableName}
-// Người gửi: {staffName}
-// ┌────────┬──────┬────┐
-// │ Món    │ ĐVT  │ SL │
-// ├────────┼──────┼────┤
-// │ item   │ Phan │ qty│
-// └────────┴──────┴────┘
 
 export async function printKitchenTicket({ orderId, tableName, items, note, time, staffName }) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const timeStr = time || now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const d = removeDiacritics;
 
   const esc = new EscPos();
   esc.init()
-    // Beep 3 lần để bếp chú ý
     .beep(3, 3)
 
-    // Header — size 2x2 (rất to)
+    // Header
     .alignCenter()
     .bold(true).size(2, 2)
-    .println('CHẾ BIẾN')
+    .println('CHE BIEN')
     .size(0, 0).bold(false)
     .newLine()
 
-    // Order info — size 1x0 (rộng gấp đôi)
+    // Order info (size 1x0 = 24 effective cols)
     .alignLeft()
     .size(1, 0)
-    .println(`Order: ${orderId}`)
-    .println(`Ngày: ${dateStr} (${timeStr})`)
+    .println('Order: ' + orderId)
+    .println('Ngay: ' + dateStr + ' (' + timeStr + ')')
     .size(0, 0)
     .newLine()
 
-    // Tên bàn — size 1x1 (to, dễ thấy)
+    // Table name (size 1x1 = big)
     .bold(true).size(1, 1)
-    .println(`Bàn: ${tableName || 'N/A'}`)
+    .println('Ban: ' + d(tableName || 'N/A'))
     .size(0, 0).bold(false)
     .size(1, 0)
-    .println(`Người gửi: ${staffName || 'Quầy Thu Ngân'}`)
+    .println('Nguoi gui: ' + d(staffName || 'Quay Thu Ngan'))
     .size(0, 0)
     .newLine()
     .line('=')
 
-    // Table header — size 1x0 (SL trước, Món sau)
+    // Table header
     .bold(true).size(1, 0)
-    .println('SL  Tên món')
+    .println('SL  Ten mon')
     .size(0, 0).bold(false)
     .line('=');
 
-  // Items — size 1x1 (to, bếp dễ đọc) — SL trước, Món sau
-  // size(1,1) = double width → 48/2 = 24 effective columns
+  // Items (size 1x1 = 24 effective cols)
   for (const item of items) {
-    const name = item.name;
+    const name = d(item.name);
     const qty = String(item.quantity || 1);
     esc.bold(true).size(1, 1);
-    // qty 2 chars + space + name fills remaining (24-3 = 21 chars)
-    const line = qty.padStart(2) + ' ' + name.slice(0, 21);
-    esc.println(line);
+    const ln = qty.padStart(2) + ' ' + name.slice(0, 21);
+    esc.println(ln);
     esc.size(0, 0).bold(false);
   }
 
   esc.line('=');
 
-  // Note — size 1x0
   if (note && note.trim()) {
     esc.bold(true).size(1, 0)
-      .println('Ghi chú:')
+      .println('Ghi chu:')
       .bold(false)
-      .println(note)
+      .println(d(note))
       .size(0, 0);
   }
 
   esc.newLine(3).cut();
 
   const result = printRaw(KITCHEN_PRINTER, esc.build());
-  console.log(`[PRINT] Kitchen: ${orderId} → ${KITCHEN_PRINTER}:`, result);
+  console.log('[PRINT] Kitchen:', orderId, '->', KITCHEN_PRINTER, result);
   return result;
 }
 
 // ──────────────────────────────────────
-// In hóa đơn thanh toán
+// In hoa don thanh toan — bang ke doc |
 // ──────────────────────────────────────
+// +----+----------------------+----------------+
+// | SL | Ten mon              |     Thanh tien |
+// +----+----------------------+----------------+
+// |  2 | Bun rieu             |       110.000d |
+// +----+----------------------+----------------+
 
 export async function printReceipt({ orderId, tableName, items, total, paymentMethod, time, staffName }) {
   const now = new Date();
   const timeStr = time || now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const fmt = n => new Intl.NumberFormat('vi-VN').format(n) + 'd';
+  const d = removeDiacritics;
+
+  // Bordered table: | SL | Ten mon              |     Thanh tien |
+  // Widths:           4    22                      18          = 44 + 4 pipes = 48
+  const W1 = 4, W2 = 22, W3 = 18;
+  const border = '+' + '-'.repeat(W1) + '+' + '-'.repeat(W2) + '+' + '-'.repeat(W3) + '+';
+  const brow = (c1, c2, c3) => {
+    return '|' + c1.padStart(W1) + '| ' + c2.padEnd(W2 - 1) + '|' + c3.padStart(W3) + '|';
+  };
 
   const esc = new EscPos();
   esc.init()
     .alignCenter().bold(true).size(1, 1)
-    .println('HÀ NỘI XƯA')
+    .println('HA NOI XUA')
     .size(0, 0).bold(false)
-    .println('Bún riêu - Bún đậu')
-    .println('220 Nguyễn Hoàng, An Phú, Thủ Đức')
+    .println('Bun rieu - Bun dau')
+    .println('220 Nguyen Hoang, An Phu, Thu Duc')
     .println('Tel: 0901 681 567')
     .line()
     .alignLeft()
-    .println(`Đơn: ${orderId}`)
-    .println(`Ngày: ${dateStr}  |  ${timeStr}`)
-    .println(`Bàn: ${tableName || 'N/A'}`)
+    .println('Don: ' + orderId)
+    .println('Ngay: ' + dateStr + '  |  ' + timeStr)
+    .println('Ban: ' + d(tableName || 'N/A'));
 
-  if (staffName) esc.println(`NV: ${staffName}`);
-  esc.line();
+  if (staffName) esc.println('NV: ' + d(staffName));
 
-  // Table header — 48 cols: SL(5) + Món(24) + Thành tiền(19)
-  esc.bold(true)
-    .tableRow([
-      { text: 'SL', width: 0.1, align: 'center' },
-      { text: 'Món', width: 0.52, align: 'left' },
-      { text: 'Thành tiền', width: 0.38, align: 'right' },
-    ])
-    .bold(false).line();
+  // Bordered table
+  esc.println(border);
+  esc.bold(true);
+  esc.println(brow(' SL', 'Ten mon', 'Thanh tien '));
+  esc.bold(false);
+  esc.println(border);
 
-  // Items
   for (const item of items) {
-    esc.tableRow([
-      { text: String(item.quantity || 1), width: 0.1, align: 'center' },
-      { text: item.name, width: 0.52, align: 'left' },
-      { text: fmt((item.price || 0) * (item.quantity || 1)), width: 0.38, align: 'right' },
-    ]);
+    const sl = String(item.quantity || 1);
+    const name = d(item.name).slice(0, W2 - 1);
+    const price = fmt((item.price || 0) * (item.quantity || 1));
+    esc.println(brow(sl, name, price));
   }
 
+  esc.println(border);
+
   // Total
-  esc.line()
+  esc.newLine()
     .bold(true).size(0, 1)
     .tableRow([
-      { text: 'TỔNG CỘNG:', width: 0.5, align: 'left' },
+      { text: 'TONG CONG:', width: 0.5, align: 'left' },
       { text: fmt(total), width: 0.5, align: 'right' },
     ])
     .size(0, 0).bold(false)
-    .println(`TT: ${paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt'}`)
+    .println('TT: ' + (paymentMethod === 'transfer' ? 'Chuyen khoan' : 'Tien mat'))
     .line()
     .alignCenter()
-    .println('Cảm ơn quý khách!')
-    .println('Hẹn gặp lại :)')
+    .println('Cam on quy khach!')
+    .println('Hen gap lai :)')
     .newLine(3).cut();
 
   const result = printRaw(RECEIPT_PRINTER, esc.build());
-  console.log(`[PRINT] Receipt: ${orderId} → ${RECEIPT_PRINTER}:`, result);
+  console.log('[PRINT] Receipt:', orderId, '->', RECEIPT_PRINTER, result);
   return result;
 }
 
@@ -330,7 +320,7 @@ export async function testPrinter() {
     .alignCenter().bold(true).size(1, 1)
     .println('=== TEST ===')
     .size(0, 0).bold(false)
-    .println(`Time: ${new Date().toLocaleString('vi-VN')}`)
+    .println('Time: ' + new Date().toLocaleString('vi-VN'))
     .println('May in OK!')
     .newLine(3).cut();
 
@@ -339,7 +329,7 @@ export async function testPrinter() {
 }
 
 // ──────────────────────────────────────
-// In biên bản bàn giao ca
+// In bien ban ban giao ca
 // ──────────────────────────────────────
 
 const DENOM_ORDER = [500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000];
@@ -370,31 +360,31 @@ export async function printShiftReport(shift) {
     .println('BAN GIAO CA')
     .size(0, 0).bold(false)
     .newLine()
-    .println(`${shiftName} ngay ${dateStr}`)
+    .println(shiftName + ' ngay ' + dateStr)
     .newLine()
 
     // Shift info
     .alignLeft()
-    .println(`Gio mo ca:    ${openTime}`)
-    .println(`Gio dong ca:  ${closeTime}`)
-    .println(`Nguoi ban giao: ${staffName}`)
+    .println('Gio mo ca:    ' + openTime)
+    .println('Gio dong ca:  ' + closeTime)
+    .println('Nguoi ban giao: ' + staffName)
     .newLine()
 
-    // Section: NỘI DUNG BÀN GIAO
+    // Section
     .alignCenter().bold(true)
     .println('NOI DUNG BAN GIAO')
     .bold(false).alignLeft()
     .line('=')
     .newLine()
 
-    // Tổng doanh thu
+    // Revenue
     .tableRow([
       { text: 'Tong doanh thu', width: 0.55, align: 'left' },
       { text: fmtD(shift.total_revenue || shift.totalRevenue), width: 0.45, align: 'right' },
     ])
     .newLine()
 
-    // Tiền mặt
+    // Cash
     .bold(true).println('Tien mat (VND)').bold(false)
     .tableRow([
       { text: '  Dau ca', width: 0.55, align: 'left' },
@@ -428,14 +418,14 @@ export async function printShiftReport(shift) {
     .bold(false)
     .newLine()
 
-    // Chuyển khoản
+    // Transfer
     .tableRow([
       { text: 'Chuyen khoan', width: 0.55, align: 'left' },
       { text: fmtD(shift.transfer_income || shift.transferIncome), width: 0.45, align: 'right' },
     ])
     .newLine()
 
-    // Nội dung khác
+    // Other
     .bold(true).println('Noi dung khac').bold(false)
     .tableRow([
       { text: '  SL hoa don', width: 0.55, align: 'left' },
@@ -447,7 +437,7 @@ export async function printShiftReport(shift) {
     ])
     .newLine()
 
-    // Chi tiết kiểm đếm
+    // Denomination detail
     .bold(true).println('Chi tiet kiem dem').bold(false)
     .line();
 
@@ -461,15 +451,15 @@ export async function printShiftReport(shift) {
   // Denomination rows
   let totalPieces = 0;
   let totalDenom = 0;
-  for (const d of DENOM_ORDER) {
-    const qty = Number(denom[d]) || 0;
+  for (const dd of DENOM_ORDER) {
+    const qty = Number(denom[dd]) || 0;
     if (qty === 0) continue;
     totalPieces += qty;
-    totalDenom += d * qty;
+    totalDenom += dd * qty;
     esc.tableRow([
-      { text: fmt(d) + 'd', width: 0.4, align: 'left' },
+      { text: fmt(dd) + 'd', width: 0.4, align: 'left' },
       { text: String(qty), width: 0.2, align: 'center' },
-      { text: fmt(d * qty) + 'd', width: 0.4, align: 'right' },
+      { text: fmt(dd * qty) + 'd', width: 0.4, align: 'right' },
     ]);
   }
 
@@ -503,6 +493,6 @@ export async function printShiftReport(shift) {
     .cut();
 
   const result = printRaw(RECEIPT_PRINTER, esc.build());
-  console.log(`[PRINT] Shift report: ${shift.id} → ${RECEIPT_PRINTER}:`, result);
+  console.log('[PRINT] Shift report:', shift.id, '->', RECEIPT_PRINTER, result);
   return result;
 }
