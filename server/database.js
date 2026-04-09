@@ -123,10 +123,10 @@ function seedTables() {
 
   const tx = db.transaction(() => {
     let id = 1;
-    for (let i = 1; i <= 10; i++) insert.run(id++, \`A\${i}\`, 4, 'A', 'empty', null, 0);
-    for (let i = 1; i <= 10; i++) insert.run(id++, \`B\${i}\`, 4, 'B', 'empty', null, 0);
-    for (let i = 1; i <= 5; i++) insert.run(id++, \`S\${i}\`, 4, 'S', 'empty', null, 0);
-    insert.run(id++, \`Mang về\`, 0, 'MV', 'empty', null, 0);
+    for (let i = 1; i <= 10; i++) insert.run(id++, `A${i}`, 4, 'A', 'empty', null, 0);
+    for (let i = 1; i <= 10; i++) insert.run(id++, `B${i}`, 4, 'B', 'empty', null, 0);
+    for (let i = 1; i <= 5; i++) insert.run(id++, `S${i}`, 4, 'S', 'empty', null, 0);
+    insert.run(id++, `Mang về`, 0, 'MV', 'empty', null, 0);
   });
   tx();
   console.log('[DB] Seeded 26 tables for Khu A, B, S, MV');
