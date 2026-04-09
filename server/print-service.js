@@ -316,3 +316,172 @@ export async function testPrinter() {
   const kitchen = printRaw(KITCHEN_PRINTER, esc.build());
   return { kitchen, kitchenPrinter: KITCHEN_PRINTER, receiptPrinter: RECEIPT_PRINTER };
 }
+
+// ──────────────────────────────────────
+// In biên bản bàn giao ca
+// ──────────────────────────────────────
+
+const DENOM_ORDER = [500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000];
+
+export async function printShiftReport(shift) {
+  const fmt = n => new Intl.NumberFormat('vi-VN').format(n || 0);
+  const fmtD = n => fmt(n) + 'd';
+
+  const openedAt = new Date(shift.opened_at || shift.openedAt);
+  const closedAt = shift.closed_at || shift.closedAt ? new Date(shift.closed_at || shift.closedAt) : new Date();
+  const dateStr = openedAt.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const openTime = openedAt.toLocaleDateString('vi-VN') + ' ' + openedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const closeTime = closedAt.toLocaleDateString('vi-VN') + ' ' + closedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+  const staffName = removeDiacritics(shift.staff_name || shift.staffName || 'Quay Thu Ngan');
+  const shiftName = removeDiacritics(shift.name || 'Ca');
+
+  // Parse denomination
+  let denom = {};
+  try { denom = typeof shift.denomination === 'string' ? JSON.parse(shift.denomination) : (shift.denomination || {}); } catch { denom = {}; }
+
+  const esc = new EscPos();
+  esc.init()
+    // Title
+    .alignCenter()
+    .bold(true).size(1, 1)
+    .println('BIEN BAN')
+    .println('BAN GIAO CA')
+    .size(0, 0).bold(false)
+    .newLine()
+    .println(`${shiftName} ngay ${dateStr}`)
+    .newLine()
+
+    // Shift info
+    .alignLeft()
+    .println(`Gio mo ca:    ${openTime}`)
+    .println(`Gio dong ca:  ${closeTime}`)
+    .println(`Nguoi ban giao: ${staffName}`)
+    .newLine()
+
+    // Section: NỘI DUNG BÀN GIAO
+    .alignCenter().bold(true)
+    .println('NOI DUNG BAN GIAO')
+    .bold(false).alignLeft()
+    .line('=')
+    .newLine()
+
+    // Tổng doanh thu
+    .tableRow([
+      { text: 'Tong doanh thu', width: 0.55, align: 'left' },
+      { text: fmtD(shift.total_revenue || shift.totalRevenue), width: 0.45, align: 'right' },
+    ])
+    .newLine()
+
+    // Tiền mặt
+    .bold(true).println('Tien mat (VND)').bold(false)
+    .tableRow([
+      { text: '  Dau ca', width: 0.55, align: 'left' },
+      { text: fmtD(shift.starting_cash || shift.startingCash), width: 0.45, align: 'right' },
+    ])
+    .tableRow([
+      { text: '  Thu trong ca', width: 0.55, align: 'left' },
+      { text: fmtD(shift.cash_income || shift.cashIncome), width: 0.45, align: 'right' },
+    ])
+    .tableRow([
+      { text: '  Chi trong ca', width: 0.55, align: 'left' },
+      { text: fmtD(shift.cash_expense || shift.cashExpense), width: 0.45, align: 'right' },
+    ])
+    .tableRow([
+      { text: '  Cuoi ca', width: 0.55, align: 'left' },
+      { text: fmtD(shift.expected_cash || shift.expectedCash), width: 0.45, align: 'right' },
+    ])
+    .tableRow([
+      { text: '  Thuc te trong ket', width: 0.55, align: 'left' },
+      { text: fmtD(shift.actual_cash || shift.actualCash), width: 0.45, align: 'right' },
+    ])
+    .bold(true)
+    .tableRow([
+      { text: '  Chenh lech', width: 0.55, align: 'left' },
+      { text: fmtD(shift.difference), width: 0.45, align: 'right' },
+    ])
+    .tableRow([
+      { text: '  Ban giao lai', width: 0.55, align: 'left' },
+      { text: fmtD(shift.handover_cash || shift.handoverCash), width: 0.45, align: 'right' },
+    ])
+    .bold(false)
+    .newLine()
+
+    // Chuyển khoản
+    .tableRow([
+      { text: 'Chuyen khoan', width: 0.55, align: 'left' },
+      { text: fmtD(shift.transfer_income || shift.transferIncome), width: 0.45, align: 'right' },
+    ])
+    .newLine()
+
+    // Nội dung khác
+    .bold(true).println('Noi dung khac').bold(false)
+    .tableRow([
+      { text: '  SL hoa don', width: 0.55, align: 'left' },
+      { text: String(shift.total_orders || shift.totalOrders || 0), width: 0.45, align: 'right' },
+    ])
+    .tableRow([
+      { text: '  SL chua thanh toan', width: 0.55, align: 'left' },
+      { text: String(shift.unpaid_orders || shift.unpaidOrders || 0), width: 0.45, align: 'right' },
+    ])
+    .newLine()
+
+    // Chi tiết kiểm đếm
+    .bold(true).println('Chi tiet kiem dem').bold(false)
+    .line();
+
+  // Table header
+  esc.tableRow([
+    { text: 'Menh gia', width: 0.4, align: 'left' },
+    { text: 'SL', width: 0.2, align: 'center' },
+    { text: 'Thanh tien', width: 0.4, align: 'right' },
+  ]).line();
+
+  // Denomination rows
+  let totalPieces = 0;
+  let totalDenom = 0;
+  for (const d of DENOM_ORDER) {
+    const qty = Number(denom[d]) || 0;
+    if (qty === 0) continue;
+    totalPieces += qty;
+    totalDenom += d * qty;
+    esc.tableRow([
+      { text: fmt(d) + 'd', width: 0.4, align: 'left' },
+      { text: String(qty), width: 0.2, align: 'center' },
+      { text: fmt(d * qty) + 'd', width: 0.4, align: 'right' },
+    ]);
+  }
+
+  esc.line()
+    .bold(true)
+    .tableRow([
+      { text: 'Tong kiem dem:', width: 0.4, align: 'left' },
+      { text: String(totalPieces), width: 0.2, align: 'center' },
+      { text: fmt(totalDenom) + 'd', width: 0.4, align: 'right' },
+    ])
+    .bold(false)
+    .newLine(2)
+
+    // Signatures
+    .alignCenter()
+    .tableRow([
+      { text: 'Nguoi ban giao', width: 0.5, align: 'center' },
+      { text: 'Nguoi nhan', width: 0.5, align: 'center' },
+    ])
+    .newLine(3)
+    .tableRow([
+      { text: staffName, width: 0.5, align: 'center' },
+      { text: '___________', width: 0.5, align: 'center' },
+    ])
+    .newLine(2)
+    .alignCenter()
+    .println('QLNH/Thu truong DV')
+    .newLine(2)
+    .println('___________________')
+    .newLine(4)
+    .cut();
+
+  const result = printRaw(RECEIPT_PRINTER, esc.build());
+  console.log(`[PRINT] Shift report: ${shift.id} → ${RECEIPT_PRINTER}:`, result);
+  return result;
+}

@@ -6,7 +6,7 @@
 import express from 'express';
 import cors from 'cors';
 import dataApi from './api.js';
-import { printKitchenTicket, printReceipt, testPrinter } from './print-service.js';
+import { printKitchenTicket, printReceipt, printShiftReport, testPrinter } from './print-service.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -88,6 +88,22 @@ app.post('/api/print/receipt', async (req, res) => {
     res.json({ success: true, orderId });
   } catch (err) {
     console.error(`[PRINT ERROR] Receipt: ${err.message}`);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// In biên bản bàn giao ca
+app.post('/api/print/shift-report', async (req, res) => {
+  try {
+    const shift = req.body;
+    if (!shift || !shift.id) {
+      return res.status(400).json({ error: 'Thiếu thông tin ca' });
+    }
+    await printShiftReport(shift);
+    console.log(`[PRINT] Shift report: ${shift.id} - ${shift.name}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`[PRINT ERROR] Shift report: ${err.message}`);
     res.status(500).json({ success: false, error: err.message });
   }
 });
