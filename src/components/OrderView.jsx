@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useStore from '../store/useStore';
 import { TABLE_STATUS_CONFIG, STAFF_LIST, ORDER_TYPES, PAYMENT_METHODS, formatCurrency } from '../data/mockData';
 import { printKitchenTicket, printReceipt } from '../services/printApi';
