@@ -113,21 +113,23 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_orders_shift ON orders(shift_id);');
 
 function seedTables() {
   const count = db.prepare('SELECT COUNT(*) as c FROM tables').get().c;
-  if (count > 0) return;
+  if (count === 26) return;
+
+  db.prepare('DELETE FROM tables').run();
 
   const insert = db.prepare(
     'INSERT INTO tables (id, name, seats, area, status, order_id, guest_count) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
 
   const tx = db.transaction(() => {
-    for (let i = 0; i < 12; i++) {
-      const area = i < 4 ? 'A' : i < 8 ? 'B' : 'C';
-      const seats = i < 4 ? 2 : i < 8 ? 4 : 6;
-      insert.run(i + 1, `Bàn ${i + 1}`, seats, area, 'empty', null, 0);
-    }
+    let id = 1;
+    for (let i = 1; i <= 10; i++) insert.run(id++, \`A\${i}\`, 4, 'A', 'empty', null, 0);
+    for (let i = 1; i <= 10; i++) insert.run(id++, \`B\${i}\`, 4, 'B', 'empty', null, 0);
+    for (let i = 1; i <= 5; i++) insert.run(id++, \`S\${i}\`, 4, 'S', 'empty', null, 0);
+    insert.run(id++, \`Mang về\`, 0, 'MV', 'empty', null, 0);
   });
   tx();
-  console.log('[DB] Seeded 12 tables');
+  console.log('[DB] Seeded 26 tables for Khu A, B, S, MV');
 }
 
 seedTables();

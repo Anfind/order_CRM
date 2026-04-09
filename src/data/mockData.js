@@ -117,20 +117,13 @@ export const ORDER_TYPES = [
 
 // Table areas
 export const TABLE_AREAS = [
-  { id: 'A', name: 'Tầng 1' },
-  { id: 'B', name: 'Tầng 2' },
-  { id: 'C', name: 'Sân vườn' },
+  { id: 'A', name: 'Khu A' },
+  { id: 'B', name: 'Khu B' },
+  { id: 'S', name: 'Khu S' },
+  { id: 'MV', name: 'Mang về' },
 ];
 
-export const INITIAL_TABLES = Array.from({ length: 12 }, (_, i) => ({
-  id: i + 1,
-  name: `Bàn ${i + 1}`,
-  seats: i < 4 ? 2 : i < 8 ? 4 : 6,
-  area: i < 4 ? 'A' : i < 8 ? 'B' : 'C',
-  status: 'empty',
-  orderId: null,
-  guestCount: 0,
-}));
+export const INITIAL_TABLES = []; // Handled by backend
 
 export const TABLE_STATUS_CONFIG = {
   empty:    { label: 'Trống',     color: 'empty',    icon: '○' },
