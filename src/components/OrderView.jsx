@@ -47,7 +47,7 @@ export default function OrderView() {
   const [orderTab, setOrderTab] = useState('dine_in');
   const [showOrderList, setShowOrderList] = useState(false);
   const [tableAreaFilter, setTableAreaFilter] = useState(tableAreas[0]?.id || 'T1');
-  const [printReceiptOnPay, setPrintReceiptOnPay] = useState(true);
+  const [printReceiptOnPay, setPrintReceiptOnPay] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null); // { orderId, itemIndex, itemName }
 

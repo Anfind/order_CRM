@@ -89,9 +89,7 @@ export default function AdminView() {
 
   const maxCount = Math.max(...stats.topItems.map(i => i.count), 1);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    localStorage.getItem('adminAuth') === 'true'
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passInput, setPassInput] = useState('');
 
   if (!isAuthenticated) {
@@ -107,7 +105,6 @@ export default function AdminView() {
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 if (passInput === '123456') {
-                  localStorage.setItem('adminAuth', 'true');
                   setIsAuthenticated(true);
                 } else {
                   addToast('Sai mật khẩu!', 'error');
@@ -122,7 +119,6 @@ export default function AdminView() {
             className="btn btn--primary" 
             onClick={() => {
               if (passInput === '123456') {
-                localStorage.setItem('adminAuth', 'true');
                 setIsAuthenticated(true);
               } else {
                 addToast('Sai mật khẩu!', 'error');
