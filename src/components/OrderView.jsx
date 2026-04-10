@@ -109,13 +109,16 @@ export default function OrderView() {
       if (ok) {
         addToast(`Đã thêm món vào đơn ${tableOrder.id}!`, 'success');
         setShowCart(false);
-        printKitchenTicket({
-          orderId: tableOrder.id + ' (THÊM)',
-          tableName: selectedTable.name,
-          items: cart,
-          note: '',
-          staffName: staffName(selectedStaffId),
-        });
+        const kitchenItems = cart.filter(item => !item.no_kitchen);
+        if (kitchenItems.length > 0) {
+          printKitchenTicket({
+            orderId: tableOrder.id + ' (THÊM)',
+            tableName: selectedTable.name,
+            items: kitchenItems,
+            note: '',
+            staffName: staffName(selectedStaffId),
+          });
+        }
       }
       return;
     }
@@ -127,13 +130,16 @@ export default function OrderView() {
       addToast(`Đã gửi đơn ${orderId} cho bếp!`, 'success');
       setShowCart(false);
       // Auto in phiếu bếp
-      printKitchenTicket({
-        orderId,
-        tableName: currentTableName,
-        items: currentCart,
-        note: '',
-        staffName: currentStaffName,
-      });
+      const kitchenItems = currentCart.filter(item => !item.no_kitchen);
+      if (kitchenItems.length > 0) {
+        printKitchenTicket({
+          orderId,
+          tableName: currentTableName,
+          items: kitchenItems,
+          note: '',
+          staffName: currentStaffName,
+        });
+      }
     }
   };
 

@@ -143,6 +143,15 @@ export default function AdminSettings() {
                     {editingItem.image && <img src={editingItem.image} alt="Preview" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />}
                     <input type="file" accept="image/*" onChange={uploadImage} />
                   </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', gridColumn: '1 / -1', cursor: 'pointer', background: 'var(--color-surface)', padding: '12px', borderRadius: '6px', border: '1px dashed #aaa' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={editingItem.no_kitchen === 1} 
+                      onChange={e => setEditingItem({...editingItem, no_kitchen: e.target.checked ? 1 : 0})} 
+                      style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: '600', color: 'var(--color-text)' }}>Không in phiếu ra bếp (dành cho Khăn ướt, Bánh tráng...)</span>
+                  </label>
                 </>
               )}
 

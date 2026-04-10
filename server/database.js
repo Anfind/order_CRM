@@ -108,6 +108,7 @@ db.exec(`
     category TEXT,
     image TEXT,
     popular INTEGER DEFAULT 0,
+    no_kitchen INTEGER DEFAULT 0,
     order_idx INTEGER DEFAULT 0
   );
 
@@ -125,6 +126,9 @@ db.exec(`
 
 // Try to patch existing orders table if it doesn't have shift_id
 try { db.exec('ALTER TABLE orders ADD COLUMN shift_id INTEGER;'); } catch (e) { /* ignore if exists */ }
+
+// Try to patch existing menu_items table for no_kitchen flag
+try { db.exec('ALTER TABLE menu_items ADD COLUMN no_kitchen INTEGER DEFAULT 0;'); } catch (e) { /* ignore if exists */ }
 
 // Now safe to create index
 db.exec('CREATE INDEX IF NOT EXISTS idx_orders_shift ON orders(shift_id);');
@@ -175,10 +179,10 @@ function seedAppConfig() {
   }
 
   if (db.prepare('SELECT COUNT(*) as c FROM menu_items').get().c === 0) {
-    const insertItem = db.prepare('INSERT INTO menu_items (id, name, desc, price, category, image, popular, order_idx) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const insertItem = db.prepare('INSERT INTO menu_items (id, name, desc, price, category, image, popular, no_kitchen, order_idx) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     db.transaction(() => {
       MENU_ITEMS.forEach((item, i) => {
-        insertItem.run(item.id, item.name, item.desc || '', item.price, item.category, item.image || '', item.popular ? 1 : 0, i);
+        insertItem.run(item.id, item.name, item.desc || '', item.price, item.category, item.image || '', item.popular ? 1 : 0, item.no_kitchen ? 1 : 0, i);
       });
     })();
     console.log('[DB] Seeded menu_items');
