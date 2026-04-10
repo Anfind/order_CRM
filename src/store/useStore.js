@@ -140,7 +140,7 @@ const useStore = create((set, get) => ({
       existing.quantity += 1;
     } else {
       const item = get().menuItems.find(m => m.id === itemId);
-      cart.push({ itemId, name: item.name, price: item.price, image: item.image, quantity: 1 });
+      cart.push({ itemId, name: item.name, price: item.price, image: item.image, quantity: 1, no_kitchen: item.no_kitchen || 0 });
     }
     set({ cart });
   },
