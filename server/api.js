@@ -131,6 +131,111 @@ router.post('/orders/:id/items', (req, res) => {
   res.json(updated);
 });
 
+// Transfer order to another table
+router.post('/orders/:id/transfer', (req, res) => {
+  const order = getOrder(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  const { toTableId } = req.body;
+  const toTable = getTable(toTableId);
+  if (!toTable) return res.status(404).json({ error: 'Target table not found' });
+
+  // Free old table
+  if (order.table_id) {
+    updateTable(order.table_id, { status: 'empty', order_id: null, guest_count: 0 });
+  }
+  // Assign to new table
+  updateTable(toTableId, { status: 'served', order_id: order.id, guest_count: order.guest_count || 0 });
+  // Update order
+  const updated = updateOrder(req.params.id, { table_id: toTableId, table_name: toTable.name });
+  res.json(updated);
+});
+
+// Split items from order to another table
+router.post('/orders/:id/split', (req, res) => {
+  const order = getOrder(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  const { itemIndices, toTableId } = req.body;
+  const toTable = getTable(toTableId);
+  if (!toTable) return res.status(404).json({ error: 'Target table not found' });
+
+  // Separate items
+  const splitItems = itemIndices.map(i => order.items[i]).filter(Boolean);
+  const remainItems = order.items.filter((_, i) => !itemIndices.includes(i));
+
+  if (splitItems.length === 0) return res.status(400).json({ error: 'No items selected' });
+
+  // Create new order on target table
+  const newOrderId = `ORD-${Date.now()}`;
+  const newOrder = {
+    id: newOrderId,
+    table_id: toTableId,
+    table_name: toTable.name,
+    items: splitItems,
+    note: '',
+    staff_id: order.staff_id,
+    staff_name: order.staff_name,
+    order_type: order.order_type,
+    guest_count: 0,
+    status: 'done',
+    total: splitItems.reduce((s, i) => s + i.price * i.quantity, 0),
+    shift_id: order.shift_id,
+    created_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+  };
+  createOrder(newOrder);
+  updateTable(toTableId, { status: 'served', order_id: newOrderId });
+
+  // Update source order
+  if (remainItems.length === 0) {
+    // All items moved, delete source order and free table
+    deleteOrder(req.params.id);
+    if (order.table_id) {
+      updateTable(order.table_id, { status: 'empty', order_id: null, guest_count: 0 });
+    }
+  } else {
+    const newTotal = remainItems.reduce((s, i) => s + i.price * i.quantity, 0);
+    updateOrder(req.params.id, { items: remainItems, total: newTotal });
+  }
+
+  res.json({ sourceOrder: remainItems.length > 0 ? getOrder(req.params.id) : null, newOrder });
+});
+
+// Merge orders from multiple tables into one
+router.post('/orders/:id/merge', (req, res) => {
+  const targetOrder = getOrder(req.params.id);
+  if (!targetOrder) return res.status(404).json({ error: 'Target order not found' });
+
+  const { sourceOrderIds } = req.body;
+  const mergedItems = [...targetOrder.items];
+
+  for (const srcId of sourceOrderIds) {
+    const srcOrder = getOrder(srcId);
+    if (!srcOrder) continue;
+
+    // Merge items
+    srcOrder.items.forEach(srcItem => {
+      const existing = mergedItems.find(mi => mi.itemId === srcItem.itemId);
+      if (existing) {
+        existing.quantity += srcItem.quantity;
+      } else {
+        mergedItems.push({ ...srcItem });
+      }
+    });
+
+    // Free source table
+    if (srcOrder.table_id) {
+      updateTable(srcOrder.table_id, { status: 'empty', order_id: null, guest_count: 0 });
+    }
+    deleteOrder(srcId);
+  }
+
+  const newTotal = mergedItems.reduce((s, i) => s + i.price * i.quantity, 0);
+  const updated = updateOrder(req.params.id, { items: mergedItems, total: newTotal });
+  res.json(updated);
+});
+
 // ──────────────────────────────────────
 // Drafts
 // ──────────────────────────────────────

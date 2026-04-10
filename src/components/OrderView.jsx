@@ -6,7 +6,7 @@ import {
   LayoutGrid, ClipboardList, UserRound, Search, X, Minus, Plus, Trash2,
   ShoppingCart, Send, Save, CircleDollarSign, Banknote, Clock, PencilLine,
   Users, ChevronDown, CircleCheck, Flame, Timer, PlusCircle, Utensils,
-  ArrowUpFromLine, Landmark, Lock, Printer
+  ArrowUpFromLine, Landmark, Lock, Printer, ArrowRightLeft, Scissors, Merge
 } from 'lucide-react';
 import './OrderView.css';
 
@@ -38,6 +38,9 @@ export default function OrderView() {
   const deleteDraft = useStore(s => s.deleteDraft);
   const addItemsToOrder = useStore(s => s.addItemsToOrder);
   const removeItemFromOrder = useStore(s => s.removeItemFromOrder);
+  const transferTable = useStore(s => s.transferTable);
+  const splitBill = useStore(s => s.splitBill);
+  const mergeBills = useStore(s => s.mergeBills);
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [showCart, setShowCart] = useState(false);
@@ -50,6 +53,9 @@ export default function OrderView() {
   const [printReceiptOnPay, setPrintReceiptOnPay] = useState(false);
   const [adminPassInput, setAdminPassInput] = useState('');
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null); // { orderId, itemIndex, itemName }
+  const [actionModal, setActionModal] = useState(null); // 'transfer' | 'split' | 'merge' | null
+  const [splitSelected, setSplitSelected] = useState([]); // indices of items to split
+  const [mergeSelected, setMergeSelected] = useState([]); // order IDs to merge
 
   const selectedTable = tables.find(t => t.id === selectedTableId);
   const tableOrder = selectedTable?.orderId
@@ -583,14 +589,23 @@ export default function OrderView() {
                   </div>
                 </div>
                 <div className="payment-modal__actions">
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', flex: 1 }}>
-                    <button className="btn btn--secondary" style={{ flex: 1, padding: '0 10px' }} onClick={() => setShowPayment(false)}>Đóng</button>
-                    <button className="btn btn--secondary" style={{ flex: 1, padding: '0 10px', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => {
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', flex: 1, flexWrap: 'wrap' }}>
+                    <button className="btn btn--secondary" style={{ flex: '1 1 auto', padding: '0 10px' }} onClick={() => setShowPayment(false)}>Đóng</button>
+                    <button className="btn btn--secondary" style={{ flex: '1 1 auto', padding: '0 10px', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }} onClick={() => {
                       setShowPayment(false);
                       const menuEl = document.getElementById('menu-section');
                       if (menuEl) menuEl.scrollIntoView({ behavior: 'smooth' });
                     }}>
                       <PlusCircle size={16} style={{ marginRight: '4px' }} /> Món
+                    </button>
+                    <button className="btn btn--secondary" style={{ flex: '1 1 auto', padding: '0 10px' }} onClick={() => { setActionModal('transfer'); }}>
+                      <ArrowRightLeft size={14} style={{ marginRight: '4px' }} /> Chuyển bàn
+                    </button>
+                    <button className="btn btn--secondary" style={{ flex: '1 1 auto', padding: '0 10px' }} onClick={() => { setSplitSelected([]); setActionModal('split'); }}>
+                      <Scissors size={14} style={{ marginRight: '4px' }} /> Tách bill
+                    </button>
+                    <button className="btn btn--secondary" style={{ flex: '1 1 auto', padding: '0 10px' }} onClick={() => { setMergeSelected([]); setActionModal('merge'); }}>
+                      <Merge size={14} style={{ marginRight: '4px' }} /> Gộp bill
                     </button>
                   </div>
                   <button className="btn btn--primary btn--lg" id="btn-pay" style={{ flex: 1, padding: '0' }} onClick={() => handlePay(tableOrder.id)}>
@@ -661,6 +676,171 @@ export default function OrderView() {
               </div>
             </div>
           )}
+
+          {/* ===== TRANSFER TABLE MODAL ===== */}
+          {actionModal === 'transfer' && tableOrder && (
+            <div className="modal-overlay" onClick={() => setActionModal(null)}>
+              <div className="admin-pass-modal" style={{ minWidth: '360px', maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                <div className="admin-pass-modal__header">
+                  <h3><ArrowRightLeft size={18} /> Chuyển bàn — {selectedTable?.name}</h3>
+                  <button className="modal-close" onClick={() => setActionModal(null)}><X size={16} /></button>
+                </div>
+                <div className="admin-pass-modal__body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <p style={{ marginBottom: '12px', color: 'var(--color-text-muted)', fontSize: '14px' }}>Chọn bàn trống để chuyển đơn sang:</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    {tables.filter(t => t.status === 'empty' && t.id !== selectedTableId).map(t => (
+                      <button
+                        key={t.id}
+                        className="btn btn--secondary"
+                        style={{ padding: '14px 8px', fontSize: '14px', fontWeight: 600 }}
+                        onClick={async () => {
+                          await transferTable(tableOrder.id, selectedTableId, t.id);
+                          setActionModal(null);
+                          setShowPayment(false);
+                        }}
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                  {tables.filter(t => t.status === 'empty' && t.id !== selectedTableId).length === 0 && (
+                    <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '20px 0' }}>Không có bàn trống nào</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== SPLIT BILL MODAL ===== */}
+          {actionModal === 'split' && tableOrder && (
+            <div className="modal-overlay" onClick={() => setActionModal(null)}>
+              <div className="admin-pass-modal" style={{ minWidth: '400px', maxWidth: '550px' }} onClick={e => e.stopPropagation()}>
+                <div className="admin-pass-modal__header">
+                  <h3><Scissors size={18} /> Tách bill — {selectedTable?.name}</h3>
+                  <button className="modal-close" onClick={() => setActionModal(null)}><X size={16} /></button>
+                </div>
+                <div className="admin-pass-modal__body" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                  <p style={{ marginBottom: '12px', color: 'var(--color-text-muted)', fontSize: '14px' }}>Chọn món để tách ra:</p>
+                  {tableOrder.items.map((item, idx) => (
+                    <label key={idx} style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
+                      borderBottom: '1px solid var(--color-divider)', cursor: 'pointer',
+                      background: splitSelected.includes(idx) ? 'rgba(59,130,246,0.08)' : 'transparent',
+                      borderRadius: '6px', marginBottom: '2px'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={splitSelected.includes(idx)}
+                        onChange={() => {
+                          setSplitSelected(prev =>
+                            prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+                          );
+                        }}
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)' }}
+                      />
+                      <span style={{ flex: 1, fontWeight: 500 }}>{item.name} ×{item.quantity}</span>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>{formatCurrency(item.price * item.quantity)}</span>
+                    </label>
+                  ))}
+
+                  {splitSelected.length > 0 && (
+                    <>
+                      <div style={{ margin: '16px 0 8px', fontWeight: 600, fontSize: '14px', color: 'var(--color-text)' }}>
+                        Chuyển {splitSelected.length} món sang bàn:
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                        {tables.filter(t => t.status === 'empty' && t.id !== selectedTableId).map(t => (
+                          <button
+                            key={t.id}
+                            className="btn btn--primary btn--sm"
+                            style={{ padding: '10px 6px' }}
+                            onClick={async () => {
+                              const ok = await splitBill(tableOrder.id, splitSelected, t.id);
+                              if (ok) {
+                                setActionModal(null);
+                                setShowPayment(false);
+                              }
+                            }}
+                          >
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                      {tables.filter(t => t.status === 'empty' && t.id !== selectedTableId).length === 0 && (
+                        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '12px 0' }}>Không có bàn trống</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== MERGE BILL MODAL ===== */}
+          {actionModal === 'merge' && tableOrder && (() => {
+            const otherActiveOrders = orders.filter(o =>
+              o.status === 'done' && o.id !== tableOrder.id
+            );
+            return (
+              <div className="modal-overlay" onClick={() => setActionModal(null)}>
+                <div className="admin-pass-modal" style={{ minWidth: '400px', maxWidth: '550px' }} onClick={e => e.stopPropagation()}>
+                  <div className="admin-pass-modal__header">
+                    <h3><Merge size={18} /> Gộp bill vào — {selectedTable?.name}</h3>
+                    <button className="modal-close" onClick={() => setActionModal(null)}><X size={16} /></button>
+                  </div>
+                  <div className="admin-pass-modal__body" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                    <p style={{ marginBottom: '12px', color: 'var(--color-text-muted)', fontSize: '14px' }}>
+                      Chọn bàn muốn gộp vào bàn {selectedTable?.name}:
+                    </p>
+                    {otherActiveOrders.length === 0 ? (
+                      <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '20px 0' }}>Không có bàn nào khác đang có đơn</p>
+                    ) : (
+                      otherActiveOrders.map(o => (
+                        <label key={o.id} style={{
+                          display: 'flex', alignItems: 'center', gap: '10px', padding: '12px',
+                          borderBottom: '1px solid var(--color-divider)', cursor: 'pointer',
+                          background: mergeSelected.includes(o.id) ? 'rgba(59,130,246,0.08)' : 'transparent',
+                          borderRadius: '6px', marginBottom: '2px'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={mergeSelected.includes(o.id)}
+                            onChange={() => {
+                              setMergeSelected(prev =>
+                                prev.includes(o.id) ? prev.filter(i => i !== o.id) : [...prev, o.id]
+                              );
+                            }}
+                            style={{ width: '18px', height: '18px', accentColor: 'var(--color-primary)' }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600 }}>{o.tableName || 'Bàn ?'}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                              {o.items.map(i => `${i.name}×${i.quantity}`).join(', ')}
+                            </div>
+                          </div>
+                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary)' }}>{formatCurrency(o.total)}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  {mergeSelected.length > 0 && (
+                    <div className="admin-pass-modal__actions">
+                      <button className="btn btn--secondary" onClick={() => setActionModal(null)}>Huỷ</button>
+                      <button className="btn btn--primary" onClick={async () => {
+                        const ok = await mergeBills(tableOrder.id, mergeSelected);
+                        if (ok) {
+                          setActionModal(null);
+                          setShowPayment(false);
+                        }
+                      }}>
+                        <Merge size={16} /> Gộp {mergeSelected.length} bàn
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ========== MENU SECTION ========== */}
           <section className="order-view__menu" id="menu-section">

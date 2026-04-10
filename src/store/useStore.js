@@ -406,6 +406,64 @@ const useStore = create((set, get) => ({
     }).catch(console.error);
   },
 
+  // --- Table Transfer ---
+  transferTable: async (orderId, fromTableId, toTableId) => {
+    const toTable = get().tables.find(t => t.id === toTableId);
+    if (!toTable) return false;
+
+    // Optimistic UI
+    const orders = get().orders.map(o =>
+      o.id === orderId ? { ...o, tableId: toTableId, tableName: toTable.name } : o
+    );
+    const tables = get().tables.map(t => {
+      if (t.id === fromTableId) return { ...t, status: 'empty', orderId: null, order_id: null, guestCount: 0, guest_count: 0 };
+      if (t.id === toTableId) return { ...t, status: 'served', orderId, order_id: orderId };
+      return t;
+    });
+    set({ orders, tables, selectedTableId: toTableId });
+
+    try {
+      await api(`/orders/${orderId}/transfer`, { method: 'POST', body: { toTableId } });
+      get().addToast(`Đã chuyển sang ${toTable.name}!`, 'success');
+    } catch (err) {
+      get().addToast('Lỗi chuyển bàn: ' + err.message, 'error');
+      get().loadFromServer();
+    }
+    return true;
+  },
+
+  // --- Split Bill ---
+  splitBill: async (orderId, itemIndices, toTableId) => {
+    try {
+      await api(`/orders/${orderId}/split`, {
+        method: 'POST',
+        body: { itemIndices, toTableId }
+      });
+      get().addToast('Tách bill thành công!', 'success');
+      await get().loadFromServer(); // Reload to sync all state
+      return true;
+    } catch (err) {
+      get().addToast('Lỗi tách bill: ' + err.message, 'error');
+      return false;
+    }
+  },
+
+  // --- Merge Bills ---
+  mergeBills: async (targetOrderId, sourceOrderIds) => {
+    try {
+      await api(`/orders/${targetOrderId}/merge`, {
+        method: 'POST',
+        body: { sourceOrderIds }
+      });
+      get().addToast('Gộp bill thành công!', 'success');
+      await get().loadFromServer(); // Reload to sync all state
+      return true;
+    } catch (err) {
+      get().addToast('Lỗi gộp bill: ' + err.message, 'error');
+      return false;
+    }
+  },
+
   // --- Toasts ---
   toasts: [],
   addToast: (message, type = 'success') => {
