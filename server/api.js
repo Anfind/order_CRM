@@ -8,7 +8,7 @@ import {
   getAllOrders, getActiveOrders, getOrder, createOrder, updateOrder, deleteOrder,
   getAllDrafts, getDraft, createDraft, deleteDraft, getDraftsByTable,
   getStats, resetAll, runTransaction,
-  getCurrentShift, openShift, closeShift, getShift, getAllShifts, saveShiftExpense, calculateShiftStats,
+  getCurrentShift, openShift, closeShift, getShift, getAllShifts, saveShiftExpense, getShiftTransactions, calculateShiftStats,
   getAllAreas, getAllCategories, getAllMenuItems, insertEntity, updateEntity, deleteEntity
 } from './database.js';
 
@@ -206,9 +206,18 @@ router.post('/shifts/:id/close', (req, res) => {
 
 router.post('/shifts/:id/expenses', (req, res) => {
   try {
-    const { amount, reason } = req.body;
-    saveShiftExpense(req.params.id, amount, reason);
+    const { amount, reason, type } = req.body;
+    saveShiftExpense(req.params.id, amount, reason, type || 'expense');
     res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.get('/shifts/:id/transactions', (req, res) => {
+  try {
+    const transactions = getShiftTransactions(req.params.id);
+    res.json(transactions);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

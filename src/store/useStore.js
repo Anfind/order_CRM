@@ -73,15 +73,15 @@ const useStore = create((set, get) => ({
     }
   },
 
-  addShiftExpense: async (shiftId, amount, reason) => {
+  addShiftTransaction: async (shiftId, amount, reason, type = 'expense') => {
     try {
       await api(`/shifts/${shiftId}/expenses`, {
         method: 'POST',
-        body: { amount, reason }
+        body: { amount, reason, type }
       });
-      get().addToast('Ghi nhận chi thành công', 'success');
+      get().addToast(type === 'income' ? 'Ghi nhận thu thành công' : 'Ghi nhận chi thành công', 'success');
     } catch (err) {
-      get().addToast(`Lỗi ghi chi: ${err.message}`, 'error');
+      get().addToast(`Lỗi ghi ${type === 'income' ? 'thu' : 'chi'}: ${err.message}`, 'error');
       throw err;
     }
   },

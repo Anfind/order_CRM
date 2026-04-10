@@ -13,6 +13,12 @@ async function fetchShiftStats(shiftId) {
   return res.json();
 }
 
+async function fetchShiftTransactions(shiftId) {
+  const res = await fetch(`${API}/shifts/${shiftId}/transactions`);
+  if (!res.ok) throw new Error('Không tải được danh sách thu chi');
+  return res.json();
+}
+
 async function printShiftReport(shiftData) {
   const res = await fetch(`${PRINT_API}/shift-report`, {
     method: 'POST',
@@ -26,14 +32,22 @@ export default function ShiftManager({ onClose }) {
   const currentShift = useStore(s => s.currentShift);
   const openShift = useStore(s => s.openShift);
   const closeShift = useStore(s => s.closeShift);
+  const addShiftTransaction = useStore(s => s.addShiftTransaction);
   const addToast = useStore(s => s.addToast);
 
-  // Mode: open | close
-  const [mode, setMode] = useState(currentShift ? 'close' : 'open');
+  // Mode: open | manage | close
+  const [mode, setMode] = useState(currentShift ? 'manage' : 'open');
 
   // Open shift state
   const [shiftName, setShiftName] = useState('Ca Sáng');
   const [startingCash, setStartingCash] = useState('');
+
+  // Transaction form
+  const [txType, setTxType] = useState('expense'); // 'expense' | 'income'
+  const [txAmount, setTxAmount] = useState('');
+  const [txReason, setTxReason] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [loadingTx, setLoadingTx] = useState(false);
 
   // Close shift state
   const [liveStats, setLiveStats] = useState(null);
@@ -53,6 +67,20 @@ export default function ShiftManager({ onClose }) {
     setTotalCounted(total);
   }, [counts]);
 
+  // Load transactions for manage mode
+  const loadTransactions = useCallback(async () => {
+    if (!currentShift) return;
+    setLoadingTx(true);
+    try {
+      const txs = await fetchShiftTransactions(currentShift.id);
+      setTransactions(txs);
+    } catch (err) {
+      console.warn('Lỗi tải thu chi:', err.message);
+    } finally {
+      setLoadingTx(false);
+    }
+  }, [currentShift]);
+
   // Fetch live stats when entering close mode
   const loadLiveStats = useCallback(async () => {
     if (!currentShift) return;
@@ -68,12 +96,24 @@ export default function ShiftManager({ onClose }) {
   }, [currentShift, addToast]);
 
   useEffect(() => {
-    if (mode === 'close' && currentShift) {
-      loadLiveStats();
-    }
-  }, [mode, currentShift, loadLiveStats]);
+    if (mode === 'manage' && currentShift) loadTransactions();
+    if (mode === 'close' && currentShift) loadLiveStats();
+  }, [mode, currentShift, loadTransactions, loadLiveStats]);
 
   const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount || 0);
+
+  // ── Handle Transaction Submit ──
+  const handleAddTransaction = async () => {
+    const amt = Number(txAmount);
+    if (!amt || amt <= 0) { addToast('Vui lòng nhập số tiền hợp lệ', 'warning'); return; }
+    if (!txReason.trim()) { addToast('Vui lòng nhập lý do', 'warning'); return; }
+    try {
+      await addShiftTransaction(currentShift.id, amt, txReason.trim(), txType);
+      setTxAmount('');
+      setTxReason('');
+      loadTransactions();
+    } catch { /* handled in store */ }
+  };
 
   // ── Open Shift ──
   const handleOpenShift = async () => {
@@ -120,7 +160,7 @@ export default function ShiftManager({ onClose }) {
   };
 
   const expectedCash = liveStats
-    ? (currentShift?.starting_cash || 0) + (liveStats.cashIncome || 0) - (liveStats.cashExpense || 0)
+    ? (currentShift?.starting_cash || 0) + (liveStats.cashIncome || 0) + (liveStats.extraIncome || 0) - (liveStats.cashExpense || 0)
     : 0;
   const difference = totalCounted - expectedCash;
 
@@ -166,6 +206,121 @@ export default function ShiftManager({ onClose }) {
             <button className="shift-btn secondary" onClick={onClose}>Hủy</button>
             <button className="shift-btn primary" onClick={handleOpenShift}>
               Bắt Đầu Ca
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════
+  // RENDER: Manage Shift (Thu Chi)
+  // ════════════════════════════════
+  if (mode === 'manage' && currentShift) {
+    return (
+      <div className="shift-overlay" onClick={onClose}>
+        <div className="shift-dialog wide" onClick={e => e.stopPropagation()}>
+          <div className="shift-header">
+            <h3>💰 Thu Chi Trong Ca — {currentShift.name}</h3>
+            <button className="shift-close-x" onClick={onClose}>✕</button>
+          </div>
+
+          <div className="shift-body two-col">
+            {/* Left: Transaction Form */}
+            <div className="shift-col">
+              <h4 className="col-title">Thêm khoản Thu / Chi</h4>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button
+                  className={`shift-btn ${txType === 'income' ? 'primary' : 'secondary'}`}
+                  style={{ flex: 1 }}
+                  onClick={() => setTxType('income')}
+                >
+                  📥 Thu vào
+                </button>
+                <button
+                  className={`shift-btn ${txType === 'expense' ? 'primary' : 'secondary'}`}
+                  style={{ flex: 1 }}
+                  onClick={() => setTxType('expense')}
+                >
+                  📤 Chi ra
+                </button>
+              </div>
+
+              <div className="shift-field">
+                <label>Số tiền (VNĐ)</label>
+                <input
+                  type="number"
+                  placeholder="VD: 50000"
+                  value={txAmount}
+                  onChange={e => setTxAmount(e.target.value)}
+                  className="money-input"
+                />
+                {txAmount && (
+                  <div className="money-hint">{formatMoney(txAmount)} đ</div>
+                )}
+              </div>
+
+              <div className="shift-field">
+                <label>Lý do / Ghi chú</label>
+                <input
+                  type="text"
+                  placeholder="VD: Mua đá, Khách trả cọc..."
+                  value={txReason}
+                  onChange={e => setTxReason(e.target.value)}
+                  style={{ padding: '10px 14px', borderRadius: '6px', border: '1.5px solid var(--color-border)', width: '100%', fontSize: '14px' }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddTransaction(); }}
+                />
+              </div>
+
+              <button
+                className="shift-btn primary"
+                style={{ width: '100%', marginTop: '8px' }}
+                onClick={handleAddTransaction}
+              >
+                {txType === 'income' ? '📥 Ghi nhận Thu' : '📤 Ghi nhận Chi'}
+              </button>
+            </div>
+
+            {/* Right: Transaction History */}
+            <div className="shift-col">
+              <h4 className="col-title">Lịch sử Thu Chi ({transactions.length})</h4>
+              <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                {loadingTx ? (
+                  <div className="stats-loading">Đang tải...</div>
+                ) : transactions.length === 0 ? (
+                  <div className="stats-loading" style={{ opacity: 0.5 }}>Chưa có khoản thu chi nào</div>
+                ) : (
+                  transactions.map(tx => (
+                    <div key={tx.id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 12px', borderBottom: '1px solid var(--color-divider)',
+                      background: tx.type === 'income' ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)',
+                      borderRadius: '6px', marginBottom: '4px'
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--color-text)' }}>{tx.reason}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                          {new Date(tx.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      <span style={{
+                        fontWeight: 700, fontSize: '15px',
+                        color: tx.type === 'income' ? '#16a34a' : '#dc2626'
+                      }}>
+                        {tx.type === 'income' ? '+' : '−'}{formatMoney(tx.amount)}đ
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="shift-footer">
+            <button className="shift-btn secondary" onClick={onClose}>Đóng</button>
+            <button className="shift-btn primary" onClick={() => setMode('close')}>
+              📋 Kiểm Đếm & Đóng Ca
             </button>
           </div>
         </div>
@@ -235,9 +390,15 @@ export default function ShiftManager({ onClose }) {
                     <span>{formatMoney(currentShift.starting_cash)} đ</span>
                   </div>
                   <div className="summary-row indent green">
-                    <span>+ Thu trong ca</span>
+                    <span>+ Thu tiền mặt</span>
                     <span>{formatMoney(liveStats.cashIncome)} đ</span>
                   </div>
+                  {(liveStats.extraIncome || 0) > 0 && (
+                    <div className="summary-row indent green">
+                      <span>+ Thu phụ (két)</span>
+                      <span>{formatMoney(liveStats.extraIncome)} đ</span>
+                    </div>
+                  )}
                   <div className="summary-row indent red">
                     <span>− Chi trong ca</span>
                     <span>{formatMoney(liveStats.cashExpense)} đ</span>
@@ -283,7 +444,7 @@ export default function ShiftManager({ onClose }) {
           </div>
 
           <div className="shift-footer">
-            <button className="shift-btn secondary" onClick={onClose}>Hủy</button>
+            <button className="shift-btn secondary" onClick={() => setMode('manage')}>← Quay lại</button>
             <button
               className="shift-btn primary"
               onClick={handleCloseShift}

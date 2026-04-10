@@ -130,6 +130,9 @@ try { db.exec('ALTER TABLE orders ADD COLUMN shift_id INTEGER;'); } catch (e) { 
 // Try to patch existing menu_items table for no_kitchen flag
 try { db.exec('ALTER TABLE menu_items ADD COLUMN no_kitchen INTEGER DEFAULT 0;'); } catch (e) { /* ignore if exists */ }
 
+// Try to patch shift_expenses for type (income/expense)
+try { db.exec("ALTER TABLE shift_expenses ADD COLUMN type TEXT DEFAULT 'expense';"); } catch (e) { /* ignore if exists */ }
+
 // Now safe to create index
 db.exec('CREATE INDEX IF NOT EXISTS idx_orders_shift ON orders(shift_id);');
 
@@ -437,8 +440,9 @@ export function calculateShiftStats(shiftId) {
 
   const cashIncome = getSum("SELECT SUM(total) as sum FROM orders WHERE shift_id = ? AND status = 'paid' AND payment_method = 'cash'");
   const transferIncome = getSum("SELECT SUM(total) as sum FROM orders WHERE shift_id = ? AND status = 'paid' AND payment_method = 'transfer'");
-  const cashExpense = getSum("SELECT SUM(amount) as sum FROM shift_expenses WHERE shift_id = ?");
-  const expectedCash = shift.starting_cash + cashIncome - cashExpense;
+  const cashExpense = getSum("SELECT SUM(amount) as sum FROM shift_expenses WHERE shift_id = ? AND type = 'expense'");
+  const extraIncome = getSum("SELECT SUM(amount) as sum FROM shift_expenses WHERE shift_id = ? AND type = 'income'");
+  const expectedCash = shift.starting_cash + cashIncome + extraIncome - cashExpense;
   const totalRevenue = cashIncome + transferIncome;
   const totalOrders = getCount("SELECT COUNT(*) as count FROM orders WHERE shift_id = ? AND status = 'paid'");
   const unpaidOrders = getCount("SELECT COUNT(*) as count FROM orders WHERE shift_id = ? AND status != 'paid'");
@@ -447,6 +451,7 @@ export function calculateShiftStats(shiftId) {
     cashIncome,
     transferIncome,
     cashExpense,
+    extraIncome,
     expectedCash,
     totalRevenue,
     totalOrders,
@@ -458,12 +463,16 @@ export function saveShiftNote(shiftId, note) {
   db.prepare('UPDATE shifts SET note = ? WHERE id = ?').run(note, shiftId);
 }
 
-export function saveShiftExpense(shiftId, amount, reason) {
+export function saveShiftExpense(shiftId, amount, reason, type = 'expense') {
   const info = db.prepare(`
-    INSERT INTO shift_expenses (shift_id, amount, reason, created_at)
-    VALUES (?, ?, ?, ?)
-  `).run(shiftId, amount, reason, new Date().toISOString());
+    INSERT INTO shift_expenses (shift_id, amount, reason, type, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(shiftId, amount, reason, type, new Date().toISOString());
   return info.lastInsertRowid;
+}
+
+export function getShiftTransactions(shiftId) {
+  return db.prepare('SELECT * FROM shift_expenses WHERE shift_id = ? ORDER BY id DESC').all(shiftId);
 }
 
 export function closeShift(shiftId, { actualCash, handoverCash, denomination }) {
