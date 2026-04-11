@@ -30,9 +30,17 @@ app.use('/api/data', dataApi);
 // Upload API (Multer)
 // ──────────────────────────────────────
 
+import { existsSync, mkdirSync } from 'fs';
+
+const uploadDir = join(__dirname, '../public/images');
+if (!existsSync(uploadDir)) {
+  mkdirSync(uploadDir, { recursive: true });
+  console.log('[Server] Created upload directory:', uploadDir);
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, join(__dirname, '../public/images'));
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     const ext = file.originalname.split('.').pop() || 'png';
