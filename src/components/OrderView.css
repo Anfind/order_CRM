@@ -224,6 +224,7 @@
   grid-template-columns: 1fr 420px;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* ── Left Panel ── */
@@ -413,6 +414,7 @@
   flex-direction: column;
   background: var(--color-surface);
   overflow: hidden;
+  min-height: 0;
 }
 
 .ov-right__header {
