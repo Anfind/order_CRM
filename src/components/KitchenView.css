@@ -5,7 +5,8 @@
 .kitchen-view {
   padding: var(--space-4);
   animation: fadeIn var(--duration-normal) var(--ease-out);
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
