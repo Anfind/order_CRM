@@ -322,7 +322,14 @@ const useStore = create((set, get) => ({
       });
       const newTotal = mergedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
       const newNote = [o.note, noteSnapshot].filter(Boolean).join(' | ');
-      return { ...o, items: mergedItems, total: newTotal, note: newNote, status: 'done' };
+      return { 
+        ...o, 
+        items: mergedItems, 
+        total: newTotal, 
+        note: newNote, 
+        status: 'done', 
+        completedAt: new Date().toISOString() 
+      };
     });
 
     set({ orders, cart: [], cartNote: '' });

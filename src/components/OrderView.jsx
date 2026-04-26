@@ -198,179 +198,178 @@ export default function OrderView() {
       {/* ===== SUB-TAB SWITCHER ===== */}
       <div className="ov-tabs" id="ov-tabs">
         <button
-          className={`ov-tab ${subTab === 'order' ? 'ov-tab--active' : ''}`}
-          onClick={() => setSubTab('order')}
-        >
-          <Utensils size={15} /> Order
-          {cartCount > 0 && <span className="ov-tab__badge">{cartCount}</span>}
-        </button>
-        <button
           className={`ov-tab ${subTab === 'floorplan' ? 'ov-tab--active' : ''}`}
           onClick={() => setSubTab('floorplan')}
         >
-          <LayoutGrid size={15} /> Sơ đồ
+          <LayoutGrid size={15} /> Sơ đồ phòng bàn
+        </button>
+        <button
+          className={`ov-tab ${subTab === 'order' ? 'ov-tab--active' : ''}`}
+          onClick={() => setSubTab('order')}
+        >
+          <Utensils size={15} /> Chọn món (Thực đơn)
+          {cartCount > 0 && <span className="ov-tab__badge">{cartCount}</span>}
         </button>
       </div>
 
-      {/* ===== FLOOR PLAN VIEW ===== */}
-      {subTab === 'floorplan' && (
-        <section className="floorplan" id="floorplan-section">
-          <div className="floorplan__header">
-            <div className="area-filter">
-              {tableAreas.map(area => (
-                <button
-                  key={area.id}
-                  className={`area-btn ${tableAreaFilter === area.id ? 'area-btn--active' : ''}`}
-                  onClick={() => setTableAreaFilter(area.id)}
-                >{area.name}</button>
-              ))}
-            </div>
-            <div className="table-legend">
-              {Object.entries(TABLE_STATUS_CONFIG).map(([key, cfg]) => (
-                <span key={key} className="table-legend__item">
-                  <span className={`table-legend__dot table-legend__dot--${cfg.color}`} />
-                  {cfg.label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="table-grid" id="table-grid">
-            {filteredTables.map(t => {
-              const cfg = TABLE_STATUS_CONFIG[t.status];
-              const isSelected = selectedTableId === t.id;
-              const tOrder = t.orderId ? orders.find(o => o.id === t.orderId) : null;
-              const tDraft = drafts.find(d => d.tableId === t.id);
-              return (
-                <button
-                  key={t.id}
-                  id={`table-${t.id}`}
-                  className={`table-card table-card--${cfg.color} ${isSelected ? 'table-card--selected' : ''}`}
-                  onClick={() => handleSelectTable(t.id)}
-                >
-                  <span className="table-card__icon">{cfg.icon}</span>
-                  <span className="table-card__name">{t.name}</span>
-                  <div className="table-card__meta">
-                    <span className="table-card__seats">{t.seats} ghế</span>
-                    {t.guestCount > 0 && (
-                      <span className="table-card__guests"><Users size={11} /> {t.guestCount}</span>
-                    )}
-                  </div>
-                  <span className={`table-card__status table-card__status--${cfg.color}`}>
-                    {cfg.label}
-                  </span>
-                  {tOrder && (
-                    <span className="table-card__total">{formatCurrency(tOrder.total)}</span>
-                  )}
-                  {tDraft && !tOrder && (
-                    <span className="table-card__draft-badge"><Save size={10} /> Tạm lưu</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Guest count bar */}
-          {selectedTable && selectedTable.status !== 'served' && (
-            <div className="guest-count-bar" id="guest-count-bar">
-              <div className="guest-count-bar__info">
-                <span className="guest-count-bar__table">{selectedTable.name}</span>
-                <span className="guest-count-bar__area">
-                  {tableAreas.find(a => a.id === selectedTable.area)?.name}
-                </span>
-              </div>
-              <div className="guest-count-bar__input">
-                <label><Users size={14} /> Số khách:</label>
-                <div className="guest-count-controls">
-                  <button className="qty-btn" onClick={() => setGuestCount(selectedTable.id, selectedTable.guestCount - 1)}><Minus size={14} /></button>
-                  <span className="qty-value">{selectedTable.guestCount}</span>
-                  <button className="qty-btn" onClick={() => setGuestCount(selectedTable.id, selectedTable.guestCount + 1)}><Plus size={14} /></button>
-                </div>
-              </div>
-              <div className="guest-count-bar__type">
-                <select className="order-type-select" value={orderType} onChange={e => setOrderType(e.target.value)}>
-                  {ORDER_TYPES.map(t => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
+      <div className="ov-split" id="ov-split">
+        {/* ── LEFT PANEL: Sơ đồ HOẶC Menu ── */}
+        <div className="ov-left">
+          {subTab === 'floorplan' ? (
+            <section className="floorplan" id="floorplan-section" style={{ padding: 0, overflowY: 'visible', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div className="floorplan__header">
+                <div className="area-filter">
+                  {tableAreas.map(area => (
+                    <button
+                      key={area.id}
+                      className={`area-btn ${tableAreaFilter === area.id ? 'area-btn--active' : ''}`}
+                      onClick={() => setTableAreaFilter(area.id)}
+                    >{area.name}</button>
                   ))}
-                </select>
+                </div>
+                <div className="table-legend">
+                  {Object.entries(TABLE_STATUS_CONFIG).map(([key, cfg]) => (
+                    <span key={key} className="table-legend__item">
+                      <span className={`table-legend__dot table-legend__dot--${cfg.color}`} />
+                      {cfg.label}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </section>
-      )}
 
-      {/* ===== ORDER VIEW (SPLIT-SCREEN) ===== */}
-      {subTab === 'order' && (
-        <div className="ov-split" id="ov-split">
-          {/* ── LEFT PANEL: Menu ── */}
-          <div className="ov-left">
-            {/* Category Tabs */}
-            <div className="category-tabs" id="category-tabs">
-              <button
-                className={`category-tab ${activeCategory === 'all' ? 'category-tab--active' : ''}`}
-                onClick={() => setActiveCategory('all')}
-              >
-                <Flame size={13} /> Tất cả
-              </button>
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  className={`category-tab ${activeCategory === cat.id ? 'category-tab--active' : ''}`}
-                  onClick={() => setActiveCategory(cat.id)}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
+              <div className="table-grid" id="table-grid" style={{ paddingBottom: '20px' }}>
+                {filteredTables.map(t => {
+                  const cfg = TABLE_STATUS_CONFIG[t.status];
+                  const isSelected = selectedTableId === t.id;
+                  const tOrder = t.orderId ? orders.find(o => o.id === t.orderId) : null;
+                  const tDraft = drafts.find(d => d.tableId === t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      id={`table-${t.id}`}
+                      className={`table-card table-card--${cfg.color} ${isSelected ? 'table-card--selected' : ''}`}
+                      onClick={() => handleSelectTable(t.id)}
+                    >
+                      <span className="table-card__icon">{cfg.icon}</span>
+                      <span className="table-card__name">{t.name}</span>
+                      <div className="table-card__meta">
+                        <span className="table-card__seats">{t.seats} ghế</span>
+                        {t.guestCount > 0 && (
+                          <span className="table-card__guests"><Users size={11} /> {t.guestCount}</span>
+                        )}
+                      </div>
+                      <span className={`table-card__status table-card__status--${cfg.color}`}>
+                        {cfg.label}
+                      </span>
+                      {tOrder && (
+                        <span className="table-card__total">{formatCurrency(tOrder.total)}</span>
+                      )}
+                      {tDraft && !tOrder && (
+                        <span className="table-card__draft-badge"><Save size={10} /> Tạm lưu</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* Search Bar */}
-            <div className="menu-search" id="menu-search">
-              <Search size={16} className="menu-search__icon" />
-              <input
-                type="text"
-                className="menu-search__input"
-                placeholder="Tìm món ăn..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                id="menu-search-input"
-              />
-              {searchQuery && (
-                <button className="menu-search__clear" onClick={() => setSearchQuery('')}><X size={14} /></button>
-              )}
-            </div>
-
-            {/* Menu Grid */}
-            <div className="menu-grid" id="menu-grid">
-              {filteredItems.length === 0 && (
-                <div className="menu-empty">
-                  <Search size={32} strokeWidth={1.5} />
-                  <p>Không tìm thấy món &quot;{searchQuery}&quot;</p>
+              {/* Guest count bar */}
+              {selectedTable && selectedTable.status !== 'served' && (
+                <div className="guest-count-bar" id="guest-count-bar" style={{ marginTop: 'auto' }}>
+                  <div className="guest-count-bar__info">
+                    <span className="guest-count-bar__table">{selectedTable.name}</span>
+                    <span className="guest-count-bar__area">
+                      {tableAreas.find(a => a.id === selectedTable.area)?.name}
+                    </span>
+                  </div>
+                  <div className="guest-count-bar__input">
+                    <label><Users size={14} /> Số khách:</label>
+                    <div className="guest-count-controls">
+                      <button className="qty-btn" onClick={() => setGuestCount(selectedTable.id, selectedTable.guestCount - 1)}><Minus size={14} /></button>
+                      <span className="qty-value">{selectedTable.guestCount}</span>
+                      <button className="qty-btn" onClick={() => setGuestCount(selectedTable.id, selectedTable.guestCount + 1)}><Plus size={14} /></button>
+                    </div>
+                  </div>
+                  <div className="guest-count-bar__type">
+                    <select className="order-type-select" value={orderType} onChange={e => setOrderType(e.target.value)}>
+                      {ORDER_TYPES.map(t => (
+                        <option key={t.id} value={t.id}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
-              {filteredItems.map(item => {
-                const inCart = cart.find(c => c.itemId === item.id);
-                return (
+            </section>
+          ) : (
+            <>
+              {/* Category Tabs */}
+              <div className="category-tabs" id="category-tabs">
+                <button
+                  className={`category-tab ${activeCategory === 'all' ? 'category-tab--active' : ''}`}
+                  onClick={() => setActiveCategory('all')}
+                >
+                  <Flame size={13} /> Tất cả
+                </button>
+                {categories.map(cat => (
                   <button
-                    key={item.id}
-                    id={`menu-item-${item.id}`}
-                    className={`menu-card ${inCart ? 'menu-card--in-cart' : ''}`}
-                    onClick={() => handleAddToCart(item.id)}
-                    disabled={!canOrder}
+                    key={cat.id}
+                    className={`category-tab ${activeCategory === cat.id ? 'category-tab--active' : ''}`}
+                    onClick={() => setActiveCategory(cat.id)}
                   >
-                    <img className="menu-card__image" src={item.image} alt={item.name} loading="lazy" />
-                    <span className="menu-card__name">{item.name}</span>
-                    {item.desc && <span className="menu-card__desc">{item.desc}</span>}
-                    <span className="menu-card__price">{formatCurrency(item.price)}</span>
-                    {item.popular && <span className="menu-card__badge">HOT</span>}
-                    {inCart && <span className="menu-card__qty">{inCart.quantity}</span>}
+                    {cat.name}
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                ))}
+              </div>
 
-          {/* ── RIGHT PANEL: Cart / Order ── */}
-          <div className="ov-right">
+              {/* Search Bar */}
+              <div className="menu-search" id="menu-search">
+                <Search size={16} className="menu-search__icon" />
+                <input
+                  type="text"
+                  className="menu-search__input"
+                  placeholder="Tìm món ăn..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  id="menu-search-input"
+                />
+                {searchQuery && (
+                  <button className="menu-search__clear" onClick={() => setSearchQuery('')}><X size={14} /></button>
+                )}
+              </div>
+
+              {/* Menu Grid */}
+              <div className="menu-grid" id="menu-grid" style={{ paddingBottom: '20px' }}>
+                {filteredItems.length === 0 && (
+                  <div className="menu-empty">
+                    <Search size={32} strokeWidth={1.5} />
+                    <p>Không tìm thấy món &quot;{searchQuery}&quot;</p>
+                  </div>
+                )}
+                {filteredItems.map(item => {
+                  const inCart = cart.find(c => c.itemId === item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      id={`menu-item-${item.id}`}
+                      className={`menu-card ${inCart ? 'menu-card--in-cart' : ''}`}
+                      onClick={() => handleAddToCart(item.id)}
+                      disabled={!canOrder}
+                    >
+                      <img className="menu-card__image" src={item.image} alt={item.name} loading="lazy" />
+                      <span className="menu-card__name">{item.name}</span>
+                      {item.desc && <span className="menu-card__desc">{item.desc}</span>}
+                      <span className="menu-card__price">{formatCurrency(item.price)}</span>
+                      {item.popular && <span className="menu-card__badge">HOT</span>}
+                      {inCart && <span className="menu-card__qty">{inCart.quantity}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── RIGHT PANEL: Cart / Order ── */}
+        <div className="ov-right">
             {/* Right Header — Table info */}
             <div className="ov-right__header">
               {selectedTable ? (
@@ -603,7 +602,6 @@ export default function OrderView() {
             </div>
           </div>
         </div>
-      )}
 
       {/* ===== MODALS (kept as-is, outside layout) ===== */}
 
