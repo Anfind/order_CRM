@@ -419,6 +419,30 @@ const useStore = create((set, get) => ({
     }).catch(console.error);
   },
 
+  cancelOrder: async (orderId) => {
+    const order = get().orders.find(o => o.id === orderId);
+    if (!order) return false;
+
+    const tableId = order.tableId || order.table_id;
+
+    // Optimistic UI
+    const orders = get().orders.filter(o => o.id !== orderId);
+    const tables = get().tables.map(t =>
+      t.id === tableId ? { ...t, status: 'empty', orderId: null, order_id: null, guestCount: 0, guest_count: 0 } : t
+    );
+    set({ orders, tables, selectedTableId: null });
+
+    try {
+      await api(`/orders/${orderId}`, { method: 'DELETE' });
+      get().addToast('Đã huỷ đơn, bàn về trống', 'info');
+      return true;
+    } catch (err) {
+      get().addToast('Lỗi huỷ đơn: ' + err.message, 'error');
+      get().loadFromServer();
+      return false;
+    }
+  },
+
   // --- Table Transfer ---
   transferTable: async (orderId, fromTableId, toTableId) => {
     const toTable = get().tables.find(t => t.id === toTableId);

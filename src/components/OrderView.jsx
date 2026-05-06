@@ -42,6 +42,7 @@ export default function OrderView() {
   const transferTable = useStore(s => s.transferTable);
   const splitBill = useStore(s => s.splitBill);
   const mergeBills = useStore(s => s.mergeBills);
+  const cancelOrder = useStore(s => s.cancelOrder);
 
   // --- UI State ---
   const [subTab, setSubTab] = useState('order'); // 'order' | 'floorplan'
@@ -56,6 +57,8 @@ export default function OrderView() {
   const [actionModal, setActionModal] = useState(null);
   const [splitSelected, setSplitSelected] = useState([]);
   const [mergeSelected, setMergeSelected] = useState([]);
+  const [pendingCancelOrder, setPendingCancelOrder] = useState(false);
+  const [cancelPassInput, setCancelPassInput] = useState('');
 
   // --- Derived Data ---
   const selectedTable = tables.find(t => t.id === selectedTableId);
@@ -550,6 +553,13 @@ export default function OrderView() {
                     <button className="btn btn--secondary btn--sm" onClick={() => { setMergeSelected([]); setActionModal('merge'); }}>
                       <Merge size={13} /> Gộp bill
                     </button>
+                    <button
+                      className="btn btn--sm"
+                      style={{ background: '#dc2626', color: '#fff', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontWeight: 600 }}
+                      onClick={() => { setPendingCancelOrder(true); setCancelPassInput(''); }}
+                    >
+                      <Trash2 size={13} /> Huỷ đơn / Trống bàn
+                    </button>
                   </div>
                 </div>
               )}
@@ -587,8 +597,12 @@ export default function OrderView() {
                         }}>
                           <CircleDollarSign size={16} /> Tính tiền
                         </button>
-                        <button className="btn btn--action btn--cancel" onClick={() => selectTable(null)}>
-                          <X size={16} /> Bỏ chọn
+                        <button
+                          className="btn btn--action btn--cancel"
+                          title="Huỷ toàn bộ đơn, giải phóng bàn về trống"
+                          onClick={() => { setPendingCancelOrder(true); setCancelPassInput(''); }}
+                        >
+                          <Trash2 size={16} /> Huỷ đơn
                         </button>
                       </>
                     )}
@@ -654,6 +668,60 @@ export default function OrderView() {
                 }
               }}>
                 <Trash2 size={16} /> Xác nhận xoá
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Order Modal */}
+      {pendingCancelOrder && tableOrder && (
+        <div className="modal-overlay" onClick={() => { setPendingCancelOrder(false); setCancelPassInput(''); }}>
+          <div className="admin-pass-modal" onClick={e => e.stopPropagation()}>
+            <div className="admin-pass-modal__header">
+              <h3><Trash2 size={18} /> Huỷ toàn bộ đơn — {selectedTable?.name}</h3>
+              <button className="modal-close" onClick={() => { setPendingCancelOrder(false); setCancelPassInput(''); }}><X size={16} /></button>
+            </div>
+            <div className="admin-pass-modal__body">
+              <p className="admin-pass-modal__msg">
+                Xoá <strong>toàn bộ {tableOrder.items.length} món</strong> và giải phóng <strong>{selectedTable?.name}</strong> về trạng thái trống?
+              </p>
+              <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px' }}>⚠️ Hành động này không thể hoàn tác.</p>
+              <label className="admin-pass-modal__label">Mật khẩu Admin</label>
+              <input
+                type="password"
+                className="admin-pass-modal__input"
+                placeholder="Nhập mật khẩu..."
+                value={cancelPassInput}
+                onChange={e => setCancelPassInput(e.target.value)}
+                onKeyDown={async e => {
+                  if (e.key === 'Enter') {
+                    if (cancelPassInput === 'admin123') {
+                      setPendingCancelOrder(false);
+                      setShowPaymentMode(false);
+                      await cancelOrder(tableOrder.id);
+                    } else {
+                      addToast('Sai mật khẩu!', 'warning');
+                      setCancelPassInput('');
+                    }
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="admin-pass-modal__actions">
+              <button className="btn btn--secondary" onClick={() => { setPendingCancelOrder(false); setCancelPassInput(''); }}>Huỷ bỏ</button>
+              <button className="btn btn--danger" onClick={async () => {
+                if (cancelPassInput === 'admin123') {
+                  setPendingCancelOrder(false);
+                  setShowPaymentMode(false);
+                  await cancelOrder(tableOrder.id);
+                } else {
+                  addToast('Sai mật khẩu!', 'warning');
+                  setCancelPassInput('');
+                }
+              }}>
+                <Trash2 size={16} /> Xác nhận huỷ đơn
               </button>
             </div>
           </div>

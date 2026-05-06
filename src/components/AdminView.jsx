@@ -87,7 +87,7 @@ export default function AdminView() {
     }
   };
 
-  const maxCount = Math.max(...stats.topItems.map(i => i.count), 1);
+  // Note: maxCount computed inside render to avoid -Infinity when topItems is empty
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passInput, setPassInput] = useState('');
@@ -251,28 +251,32 @@ export default function AdminView() {
           </div>
         ) : (
           <div className="top-items-chart">
-            {stats.topItems.map((item, i) => (
-              <div key={i} className="top-item">
-                <div className="top-item__rank">#{i + 1}</div>
-                <img className="top-item__image" src={item.image} alt={item.name} />
-                <div className="top-item__info">
-                  <span className="top-item__name">{item.name}</span>
-                  <div className="top-item__bar-container">
-                    <div
-                      className="top-item__bar"
-                      style={{ width: `${(item.count / maxCount) * 100}%` }}
-                    />
+            {stats.topItems.map((item, i) => {
+              const maxCount = Math.max(...stats.topItems.map(x => x.count), 1);
+              return (
+                <div key={i} className="top-item">
+                  <div className="top-item__rank">#{i + 1}</div>
+                  <img className="top-item__image" src={item.image || '/food/topping.png'} alt={item.name} onError={e => { e.target.src = '/food/topping.png'; }} />
+                  <div className="top-item__info">
+                    <span className="top-item__name">{item.name}</span>
+                    <div className="top-item__bar-container">
+                      <div
+                        className="top-item__bar"
+                        style={{ width: `${(item.count / maxCount) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="top-item__stats">
+                    <span className="top-item__count">{item.count} phần</span>
+                    <span className="top-item__revenue">{formatCurrency(item.revenue)}</span>
                   </div>
                 </div>
-                <div className="top-item__stats">
-                  <span className="top-item__count">{item.count} phần</span>
-                  <span className="top-item__revenue">{formatCurrency(item.revenue)}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
 
       {/* Order History — Grouped by Date */}
       <div className="admin-section" id="order-history-section">

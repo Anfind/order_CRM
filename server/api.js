@@ -80,6 +80,18 @@ router.put('/orders/:id', (req, res) => {
   res.json(order);
 });
 
+// Cancel entire order and free table
+router.delete('/orders/:id', (req, res) => {
+  const order = getOrder(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  deleteOrder(req.params.id);
+  if (order.table_id) {
+    updateTable(order.table_id, { status: 'empty', order_id: null, guest_count: 0 });
+  }
+  res.json({ cancelled: true, tableId: order.table_id });
+});
+
 // Remove an item from an order by index
 router.delete('/orders/:id/items/:index', (req, res) => {
   const order = getOrder(req.params.id);
@@ -111,7 +123,10 @@ router.post('/orders/:id/items', (req, res) => {
   const mergedItems = [...order.items];
 
   newCartItems.forEach(cartItem => {
-    const existing = mergedItems.find(mi => mi.itemId === cartItem.itemId);
+    // Only merge if same itemId AND neither has a note (to preserve notes correctly)
+    const existing = mergedItems.find(
+      mi => mi.itemId === cartItem.itemId && !mi.note && !cartItem.note
+    );
     if (existing) {
       existing.quantity += cartItem.quantity;
     } else {
@@ -126,7 +141,7 @@ router.post('/orders/:id/items', (req, res) => {
     items: mergedItems,
     total: newTotal,
     note: newNote,
-    status: 'done', // Auto-complete
+    status: 'done',
   });
   res.json(updated);
 });
