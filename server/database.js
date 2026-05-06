@@ -136,6 +136,22 @@ try { db.exec("ALTER TABLE shift_expenses ADD COLUMN type TEXT DEFAULT 'expense'
 // Now safe to create index
 db.exec('CREATE INDEX IF NOT EXISTS idx_orders_shift ON orders(shift_id);');
 
+// ──────────────────────────────────────
+// Startup self-heal: reset tables stuck on paid/missing orders
+// ──────────────────────────────────────
+const stuckPaid = db.prepare(`
+  UPDATE tables SET status = 'empty', order_id = NULL, guest_count = 0
+  WHERE order_id IN (SELECT id FROM orders WHERE status = 'paid')
+`).run();
+
+const stuckOrphan = db.prepare(`
+  UPDATE tables SET status = 'empty', order_id = NULL, guest_count = 0
+  WHERE order_id IS NOT NULL AND order_id NOT IN (SELECT id FROM orders)
+`).run();
+
+if (stuckPaid.changes || stuckOrphan.changes) {
+  console.log(`[DB] Self-heal: reset ${stuckPaid.changes + stuckOrphan.changes} stuck table(s)`);
+}
 
 import { MENU_CATEGORIES, MENU_ITEMS, TABLE_AREAS } from '../src/data/mockData.js';
 
