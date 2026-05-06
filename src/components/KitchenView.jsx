@@ -65,7 +65,7 @@ export default function KitchenView() {
                   </span>
                 </div>
                 <div className="kitchen-card__items kitchen-card__items--compact">
-                  {order.items.map((item, i) => (
+                  {(order.items || []).map((item, i) => (
                     <span key={i} className="kitchen-card__item-compact">
                       {item.name} ×{item.quantity}
                     </span>
@@ -110,7 +110,7 @@ export default function KitchenView() {
                   Danh sách món
                 </div>
                 <div style={{ maxHeight: '250px', overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {selectedOrder.items.map((item, i) => (
+                  {(selectedOrder.items || []).map((item, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', background: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border-light)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <img src={item.image} alt={item.name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />

@@ -311,7 +311,7 @@ const useStore = create((set, get) => ({
     const orders = get().orders.map(o => {
       if (o.id !== orderId) return o;
       // Deep clone existing items to avoid mutating Zustand state
-      const mergedItems = o.items.map(item => ({ ...item }));
+      const mergedItems = (o.items || []).map(item => ({ ...item }));
       cartSnapshot.forEach(cartItem => {
         const existing = mergedItems.find(mi => mi.itemId === cartItem.itemId && !cartItem.note);
         if (existing && !existing.note) {
@@ -522,12 +522,12 @@ const useStore = create((set, get) => ({
 
     const itemCounts = {};
     orders.forEach(o => {
-      o.items.forEach(item => {
+      (o.items || []).forEach(item => {
         if (!itemCounts[item.name]) {
           itemCounts[item.name] = { name: item.name, image: item.image, count: 0, revenue: 0 };
         }
-        itemCounts[item.name].count += item.quantity;
-        itemCounts[item.name].revenue += item.price * item.quantity;
+        itemCounts[item.name].count += item.quantity || 1;
+        itemCounts[item.name].revenue += (item.price || 0) * (item.quantity || 1);
       });
     });
     const topItems = Object.values(itemCounts).sort((a, b) => b.count - a.count).slice(0, 8);
@@ -569,6 +569,7 @@ const useStore = create((set, get) => ({
 
       const orders = data.orders.map(o => ({
         ...o,
+        items: o.items || [],
         tableId: o.table_id ?? o.tableId,
         tableName: o.table_name ?? o.tableName,
         staffId: o.staff_id ?? o.staffId,

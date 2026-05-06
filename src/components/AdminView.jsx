@@ -47,7 +47,7 @@ export default function AdminView() {
       'Khách': o.guestCount || 0,
       'Tổng Tiền': o.total,
       'Thanh Toán': o.paymentMethod === 'cash' ? 'Tiền Mặt' : o.paymentMethod === 'transfer' ? 'Chuyển Khoản' : o.paymentMethod || '',
-      'Món Đã Gọi': o.items.map(i => `${i.quantity}x ${i.name}`).join(' | '),
+      'Món Đã Gọi': (o.items || []).map(i => `${i.quantity}x ${i.name}`).join(' | '),
       'Giờ Tạo': new Date(o.createdAt || o.created_at).toLocaleString('vi-VN'),
       'Giờ Hoàn Thành': o.paidAt || o.paid_at ? new Date(o.paidAt || o.paid_at).toLocaleString('vi-VN') : '',
       'Trạng Thái': o.status === 'paid' ? 'Đã thu tiền' : o.status === 'done' ? 'Đã ra món' : o.status
@@ -319,7 +319,7 @@ export default function AdminView() {
                         </div>
                       </div>
                       <div className="order-row__items">
-                        {order.items.map((item, i) => (
+                        {(order.items || []).map((item, i) => (
                           <span key={i} className="order-row__item-tag">
                             {item.name} ×{item.quantity}
                           </span>

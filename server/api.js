@@ -386,16 +386,28 @@ router.get('/config/:table', (req, res) => {
 });
 
 router.post('/config/:table', (req, res) => {
-  res.json(insertEntity(req.params.table, req.body));
+  try {
+    res.json(insertEntity(req.params.table, req.body));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.put('/config/:table/:id', (req, res) => {
-  res.json(updateEntity(req.params.table, req.params.id, req.body));
+  try {
+    res.json(updateEntity(req.params.table, req.params.id, req.body));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.delete('/config/:table/:id', (req, res) => {
-  deleteEntity(req.params.table, req.params.id);
-  res.json({ success: true });
+  try {
+    deleteEntity(req.params.table, req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // ──────────────────────────────────────

@@ -21,7 +21,14 @@ export default function AdminSettings() {
         headers: body ? { 'Content-Type': 'application/json' } : {},
         body: body ? JSON.stringify(body) : undefined,
       });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) {
+        let errMsg = 'API Error';
+        try {
+          const errData = await res.json();
+          if (errData.error) errMsg = errData.error;
+        } catch(e) {}
+        throw new Error(errMsg);
+      }
       return true;
     } catch(err) {
       addToast(err.message, 'error');

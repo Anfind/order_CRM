@@ -430,7 +430,7 @@ export default function OrderView() {
             {/* Items Body (scrollable) */}
             <div className="ov-right__items-body">
               {/* Existing order items */}
-              {tableOrder && tableOrder.items.map((item, i) => (
+              {tableOrder && (tableOrder.items || []).map((item, i) => (
                 <div key={`order-${i}`} className="ov-item ov-item--existing">
                   <span className="col-name">{item.name} {item.note && <em className="ov-item__note">» {item.note}</em>}</span>
                   <span className="col-qty">{item.quantity}</span>
@@ -696,7 +696,7 @@ export default function OrderView() {
                 onChange={e => setCancelPassInput(e.target.value)}
                 onKeyDown={async e => {
                   if (e.key === 'Enter') {
-                    if (cancelPassInput === 'admin123') {
+                    if (cancelPassInput === '123456') {
                       setPendingCancelOrder(false);
                       setShowPaymentMode(false);
                       await cancelOrder(tableOrder.id);
@@ -712,7 +712,7 @@ export default function OrderView() {
             <div className="admin-pass-modal__actions">
               <button className="btn btn--secondary" onClick={() => { setPendingCancelOrder(false); setCancelPassInput(''); }}>Huỷ bỏ</button>
               <button className="btn btn--danger" onClick={async () => {
-                if (cancelPassInput === 'admin123') {
+                if (cancelPassInput === '123456') {
                   setPendingCancelOrder(false);
                   setShowPaymentMode(false);
                   await cancelOrder(tableOrder.id);
@@ -772,7 +772,7 @@ export default function OrderView() {
             </div>
             <div className="admin-pass-modal__body" style={{ maxHeight: '500px', overflowY: 'auto' }}>
               <p style={{ marginBottom: '12px', color: 'var(--color-text-muted)', fontSize: '14px' }}>Chọn món để tách ra:</p>
-              {tableOrder.items.map((item, idx) => (
+              {(tableOrder.items || []).map((item, idx) => (
                 <label key={idx} style={{
                   display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
                   borderBottom: '1px solid var(--color-divider)', cursor: 'pointer',
@@ -835,7 +835,7 @@ export default function OrderView() {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600 }}>{o.tableName || 'Bàn ?'}</div>
                         <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                          {o.items.map(i => `${i.name}×${i.quantity}`).join(', ')}
+                          {(o.items || []).map(i => `${i.name}×${i.quantity}`).join(', ')}
                         </div>
                       </div>
                       <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary)' }}>{formatCurrency(o.total)}</span>
